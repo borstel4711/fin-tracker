@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import type { Category, Transaction } from '../types';
+import { formatDate } from '../utils/date';
 import styles from './Transactions.module.css';
 
 export default function Transactions() {
@@ -56,8 +57,8 @@ export default function Transactions() {
           <tbody>
             {transactions.map((tx) => (
               <tr key={tx.id}>
-                <td className={styles.nowrap}>{tx.date}</td>
-                <td className={`${styles.nowrap} ${styles.muted}`}>{tx.value_date ?? '–'}</td>
+                <td className={styles.nowrap}>{formatDate(tx.date)}</td>
+                <td className={`${styles.nowrap} ${styles.muted}`}>{formatDate(tx.value_date)}</td>
                 <td>{tx.counterparty}</td>
                 <td className={styles.muted}>{tx.purpose}</td>
                 <td className={`${styles.amountRight} ${tx.amount < 0 ? styles.negative : styles.positive}`}>

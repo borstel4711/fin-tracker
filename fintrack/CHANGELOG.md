@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.5
+
+- Kategorien sind jetzt direkt im UI bearbeitbar (nicht mehr nur anlegen/
+  löschen); Formular wechselt per "bearbeiten"/"Abbrechen" zwischen Anlegen-
+  und Bearbeiten-Modus.
+- Kategorien können ein MDI-Icon erhalten (Freitext-Eingabe, kein Picker);
+  das Icon wird zur Laufzeit über die öffentliche Iconify-API geladen statt
+  als Icon-Set eingebettet zu werden.
+- Löschen einer Kategorie entfernt sie jetzt kaskadierend aus allen
+  betroffenen Buchungen, Regeln und gelernten Zuordnungen, statt an einer
+  Fremdschlüssel-Verletzung zu scheitern.
+- Dashboard-Diagramme laufen jetzt über ApexCharts statt Recharts
+  (Monatsbilanz, Kontostandsverlauf inkl. Soll/Ist-Stützpunkten,
+  Ausgaben-nach-Kategorie als Donut), weiterhin Dark/Light-Mode-bewusst.
+- Datumsangaben werden im gesamten Frontend einheitlich als TT.MM.JJJJ
+  dargestellt (Buchungen, Wertstellung, Saldo-Anker).
+- Fehler behoben: Bei Bestandsinstallationen, deren "ING CSV"-Importprofil
+  vor Einführung der Wertstellungsdatum-Spalte angelegt wurde, blieb das
+  Wertstellungsdatum beim Import dauerhaft leer; ein einmaliges Backfill
+  beim Start korrigiert das vorhandene Profil.
+
 ## 0.1.4
 
 - Frontend-Styling überarbeitet und an das Design von my-wallpanel

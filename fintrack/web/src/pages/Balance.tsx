@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { BalanceAnchor, BalanceSeriesResponse } from '../types';
+import { formatDate } from '../utils/date';
 import styles from './Balance.module.css';
 
 const emptyAnchor = { date: '', balance: '', type: 'checkpoint' as BalanceAnchor['type'], note: '' };
@@ -89,7 +90,7 @@ export default function Balance() {
               const cp = series.checkpoints.find((c) => c.id === a.id);
               return (
                 <tr key={a.id}>
-                  <td>{a.date}</td>
+                  <td>{formatDate(a.date)}</td>
                   <td>{a.type}</td>
                   <td className={styles.amountRight}>{a.balance.toFixed(2)} €</td>
                   <td className={styles.amountRight}>{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>

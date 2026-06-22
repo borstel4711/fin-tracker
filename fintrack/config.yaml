@@ -1,5 +1,5 @@
 name: My Cash Supervisor
-version: "0.1.4"
+version: "0.1.5"
 slug: fintrack
 description: Einnahmen-/Ausgaben-Überwachung mit CSV-Import
 url: "https://github.com/borstel4711/my-cash-supervisor"

@@ -4,6 +4,7 @@ export interface Category {
   parent_id: number | null;
   color: string | null;
   kind: 'fixed' | 'variable' | 'income' | 'transfer';
+  icon: string | null;
 }
 
 export interface Rule {

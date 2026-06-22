@@ -102,6 +102,15 @@ function addColumnIfMissing(table, column, definition) {
 }
 addColumnIfMissing('transactions', 'value_date', 'TEXT');
 addColumnIfMissing('import_profiles', 'col_value_date', 'TEXT');
+addColumnIfMissing('categories', 'icon', 'TEXT');
+
+// Bestand-Installationen haben ihr "ING CSV"-Profil ggf. angelegt, bevor
+// col_value_date existierte (seedImportProfile legt ein Profil nur einmalig
+// an, ein Bestandsprofil wird dadurch nie nachträglich befüllt). Ohne dieses
+// Backfill bleibt die Wertstellung dort dauerhaft NULL.
+db.prepare(
+  "UPDATE import_profiles SET col_value_date = 'Valuta' WHERE name = 'ING CSV' AND col_value_date IS NULL"
+).run();
 
 function seedImportProfile(profile) {
   const existing = db.prepare('SELECT id FROM import_profiles WHERE name = ?').get(profile.name);

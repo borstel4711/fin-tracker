@@ -51,3 +51,19 @@
 .kind {
   color: var(--text-muted);
 }
+
+.iconInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iconInputGroup input {
+  width: 140px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

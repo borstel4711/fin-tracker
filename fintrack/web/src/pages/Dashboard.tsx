@@ -1,20 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
+import Chart from 'react-apexcharts';
+import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
+import { formatDate } from '../utils/date';
 import type { MonthlyTotal, BalanceSeriesResponse, CategoryTotal, CompareResponse, Transaction } from '../types';
 import styles from './Dashboard.module.css';
 
@@ -49,65 +38,81 @@ export default function Dashboard() {
       .catch(() => {});
   }, [month]);
 
-  const balanceChartData = useMemo(
+  const balanceDates = useMemo(() => balanceSeries.series.map((p) => p.date), [balanceSeries]);
+  const balanceValues = useMemo(() => balanceSeries.series.map((p) => p.balance), [balanceSeries]);
+  const checkpointValues = useMemo(
     () =>
-      balanceSeries.series.map((p) => ({
-        date: p.date,
-        balance: p.balance,
-        checkpoint: balanceSeries.checkpoints.find((c) => c.date === p.date)?.balance ?? null,
-      })),
+      balanceSeries.series.map((p) => balanceSeries.checkpoints.find((c) => c.date === p.date)?.balance ?? null),
     [balanceSeries]
   );
 
+  const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
   const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
-  const axisColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
-  const tooltipStyle = {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    color: 'var(--text)',
+  const tooltipTheme = theme === 'dark' ? 'dark' : 'light';
+
+  const baseOptions: ApexOptions = {
+    chart: { foreColor, toolbar: { show: false }, background: 'transparent' },
+    grid: { borderColor: gridColor },
+    tooltip: { theme: tooltipTheme },
   };
+
+  const monthlyOptions: ApexOptions = {
+    ...baseOptions,
+    chart: { ...baseOptions.chart, id: 'monthly' },
+    xaxis: { categories: monthly.map((m) => m.month) },
+    colors: ['#16a34a', '#dc2626', '#2563eb'],
+    stroke: { width: [0, 0, 2] },
+    dataLabels: { enabled: false },
+    legend: { labels: { colors: foreColor } },
+  };
+  const monthlySeries = [
+    { name: 'Einnahmen', type: 'column', data: monthly.map((m) => m.income) },
+    { name: 'Ausgaben', type: 'column', data: monthly.map((m) => m.expense) },
+    { name: 'Netto', type: 'line', data: monthly.map((m) => m.net) },
+  ];
+
+  const balanceOptions: ApexOptions = {
+    ...baseOptions,
+    chart: { ...baseOptions.chart, id: 'balance' },
+    xaxis: {
+      categories: balanceDates,
+      labels: { formatter: (v: string) => formatDate(v) },
+    },
+    tooltip: { ...baseOptions.tooltip, x: { formatter: (v: number) => formatDate(balanceDates[v - 1]) } },
+    colors: ['#2563eb', '#d97706'],
+    stroke: { width: [2, 0], curve: 'smooth' },
+    markers: { size: [0, 5] },
+    dataLabels: { enabled: false },
+    legend: { labels: { colors: foreColor } },
+  };
+  const balanceChartSeries = [
+    { name: 'Berechnet', type: 'line', data: balanceValues },
+    { name: 'Soll/Ist-Stützpunkt', type: 'line', data: checkpointValues },
+  ];
+
+  const categoryOptions: ApexOptions = {
+    ...baseOptions,
+    chart: { ...baseOptions.chart, id: 'by-category', type: 'donut' },
+    labels: byCategory.map((c) => c.name),
+    colors: byCategory.map((c, i) => c.color || COLORS[i % COLORS.length]),
+    legend: { labels: { colors: foreColor }, position: 'bottom' },
+    dataLabels: { enabled: false },
+  };
+  const categorySeries = byCategory.map((c) => c.total);
 
   return (
     <div className={styles.page}>
       <section>
         <h2 className={styles.sectionTitle}>Monatsbilanz</h2>
         <div className={`card ${styles.chartCard}`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-              <XAxis dataKey="month" tick={{ fill: axisColor, fontSize: 12 }} />
-              <YAxis tick={{ fill: axisColor, fontSize: 12 }} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend />
-              <Bar dataKey="income" name="Einnahmen" fill="#16a34a" />
-              <Bar dataKey="expense" name="Ausgaben" fill="#dc2626" />
-              <Line type="monotone" dataKey="net" name="Netto" stroke="#2563eb" strokeWidth={2} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <Chart options={monthlyOptions} series={monthlySeries} type="line" height="100%" />
         </div>
       </section>
 
       <section>
         <h2 className={styles.sectionTitle}>Kontostandsverlauf</h2>
         <div className={`card ${styles.chartCard}`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={balanceChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-              <XAxis dataKey="date" tick={{ fill: axisColor, fontSize: 12 }} />
-              <YAxis tick={{ fill: axisColor, fontSize: 12 }} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Line type="monotone" dataKey="balance" name="Berechnet" stroke="#2563eb" dot={false} />
-              <Line
-                type="monotone"
-                dataKey="checkpoint"
-                name="Soll/Ist-Stützpunkt"
-                stroke="#d97706"
-                strokeWidth={0}
-                dot={{ r: 5 }}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <Chart options={balanceOptions} series={balanceChartSeries} type="line" height="100%" />
         </div>
         {balanceSeries.checkpoints.some((c) => Math.abs(c.diff) > 0.01) && (
           <p className={styles.warning}>
@@ -120,17 +125,7 @@ export default function Dashboard() {
         <section>
           <h2 className={styles.sectionTitle}>Ausgaben nach Kategorie ({month})</h2>
           <div className={`card ${styles.chartCardSmall}`}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={byCategory} dataKey="total" nameKey="name" innerRadius={50} outerRadius={80}>
-                  {byCategory.map((entry, i) => (
-                    <Cell key={entry.category_id ?? 'none'} fill={entry.color || COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <Chart options={categoryOptions} series={categorySeries} type="donut" height="100%" />
           </div>
         </section>
 
