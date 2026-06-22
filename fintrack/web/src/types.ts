@@ -84,6 +84,14 @@ export interface CategoryTotal {
   total: number;
 }
 
+export interface CategoryMonthlyTotal {
+  month: string;
+  category_id: number | null;
+  name: string;
+  color: string | null;
+  total: number;
+}
+
 export interface CompareResponse {
   month: MonthlyTotal;
   previousMonth: MonthlyTotal;
