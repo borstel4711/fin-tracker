@@ -5,6 +5,7 @@ export interface Category {
   color: string | null;
   kind: 'fixed' | 'variable' | 'income' | 'transfer';
   icon: string | null;
+  mode: 'one_time' | 'recurring';
 }
 
 export interface Rule {
@@ -78,6 +79,14 @@ export interface MonthlyTotal {
 }
 
 export interface CategoryTotal {
+  category_id: number | null;
+  name: string;
+  color: string | null;
+  total: number;
+}
+
+export interface CategoryMonthlyTotal {
+  month: string;
   category_id: number | null;
   name: string;
   color: string | null;
