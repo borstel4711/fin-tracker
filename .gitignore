@@ -1,0 +1,11 @@
+node_modules/
+fintrack/web/dist/
+fintrack/server/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.tsbuildinfo
+fintrack/web/vite.config.js
+fintrack/web/vite.config.d.ts
+.DS_Store
