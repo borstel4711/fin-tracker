@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.8
+
+- App umbenannt zu "Finance Tracker" (Anzeigename in Add-on-Liste, Ingress-
+  Panel und Web-UI; passend zum umbenannten GitHub-Repository
+  `fin-tracker`. Technischer Slug `fintrack` bleibt unverändert, damit HA
+  dies weiterhin als Update des bestehenden Add-ons erkennt).
+- `url`-Felder in `config.yaml`/`repository.yaml` auf die neue
+  GitHub-Repository-Adresse aktualisiert.
+
 ## 0.1.7
 
 - Importprofile lassen sich jetzt im UI bearbeiten (nicht mehr nur anlegen/

@@ -1,8 +1,8 @@
-name: My Cash Supervisor
-version: "0.1.7"
+name: Finance Tracker
+version: "0.1.8"
 slug: fintrack
 description: Einnahmen-/Ausgaben-Überwachung mit CSV-Import
-url: "https://github.com/borstel4711/my-cash-supervisor"
+url: "https://github.com/borstel4711/fin-tracker"
 arch:
   - aarch64
   - amd64
@@ -22,6 +22,6 @@ ingress: true
 # bashio::addon.ingress_port aus.
 ingress_port: 0
 panel_icon: mdi:cash-multiple
-panel_title: My Cash Supervisor
+panel_title: Finance
 map:
   - data:rw

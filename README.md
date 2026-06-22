@@ -1,4 +1,4 @@
-# My Cash Supervisor
+# Finance Tracker
 
 CSV-basierte Haushaltsfinanz-App als Home-Assistant-Add-on (Ingress-only).
 Siehe [CONCEPT.md](./CONCEPT.md) für Architektur, Datenmodell und API.
@@ -6,7 +6,7 @@ Siehe [CONCEPT.md](./CONCEPT.md) für Architektur, Datenmodell und API.
 ## Als HA Add-on installieren
 
 In Home Assistant unter **Einstellungen → Add-ons → Add-on-Store → ⋮ →
-Repositories** diese GitHub-URL eintragen. My Cash Supervisor erscheint danach
+Repositories** diese GitHub-URL eintragen. Finance Tracker erscheint danach
 in der Liste verfügbarer Add-ons.
 
 ## Lokale Entwicklung

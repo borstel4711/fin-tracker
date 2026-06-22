@@ -77,7 +77,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 8099;
 const server = app.listen(PORT, () => {
-  log(`My Cash Supervisor server listening on port ${PORT}`);
+  log(`Finance Tracker server listening on port ${PORT}`);
 });
 
 function shutdown(signal) {

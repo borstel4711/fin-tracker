@@ -1,7 +1,7 @@
 #!/usr/bin/with-contenv bashio
 set -e
 
-bashio::log.info "Starting My Cash Supervisor..."
+bashio::log.info "Starting Finance Tracker..."
 
 # ingress_port: 0 in config.yaml lässt den Supervisor den tatsächlichen Port
 # dynamisch zuteilen (vermeidet Konflikte, falls 8099 anderswo belegt ist).

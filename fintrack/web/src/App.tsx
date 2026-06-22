@@ -69,7 +69,7 @@ export default function App() {
             >
               {menuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
-            <h1 className={styles.title}>My Cash Supervisor</h1>
+            <h1 className={styles.title}>Finance Tracker</h1>
           </div>
 
           <nav className={`${styles.nav} ${menuOpen ? styles.navOpen : ''}`}>
