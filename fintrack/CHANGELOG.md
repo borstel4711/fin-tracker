@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+- Port ist jetzt über die Add-on-Konfiguration einstellbar (`port`, Standard
+  8099). Hinweis: Ingress ist intern fest auf 8099 verdrahtet; bei
+  Abweichung wird beim Start eine Warnung ins HA-Log geschrieben.
+- Vorkonfiguriertes Importprofil "ING CSV" wird beim ersten Start automatisch
+  angelegt (Spalten Buchung/Valuta/Betrag/Auftraggeber-Empfänger/
+  Verwendungszweck, Saldo ignoriert, Header in Zeile 14).
+
 ## 0.1.2
 
 - `init: false` in der Add-on-Konfiguration ergänzt. Damit wird s6-overlay v3

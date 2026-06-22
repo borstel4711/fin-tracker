@@ -103,4 +103,36 @@ function addColumnIfMissing(table, column, definition) {
 addColumnIfMissing('transactions', 'value_date', 'TEXT');
 addColumnIfMissing('import_profiles', 'col_value_date', 'TEXT');
 
+function seedImportProfile(profile) {
+  const existing = db.prepare('SELECT id FROM import_profiles WHERE name = ?').get(profile.name);
+  if (existing) return;
+  log(`Seeding default import profile: ${profile.name}`);
+  db.prepare(
+    `INSERT INTO import_profiles
+       (name, delimiter, encoding, date_format, decimal_comma, skip_rows,
+        col_date, col_value_date, col_amount, col_debit, col_credit, col_counterparty, col_purpose, col_balance)
+     VALUES (@name, @delimiter, @encoding, @date_format, @decimal_comma, @skip_rows,
+        @col_date, @col_value_date, @col_amount, @col_debit, @col_credit, @col_counterparty, @col_purpose, @col_balance)`
+  ).run(profile);
+}
+
+// Standard-Spaltennamen des ING-Girokonto-CSV-Exports: Header in Zeile 14
+// (13 Metadatenzeilen davor), Saldo/Währung bewusst nicht gemappt.
+seedImportProfile({
+  name: 'ING CSV',
+  delimiter: ';',
+  encoding: 'latin1',
+  date_format: 'DD.MM.YYYY',
+  decimal_comma: 1,
+  skip_rows: 13,
+  col_date: 'Buchung',
+  col_value_date: 'Valuta',
+  col_amount: 'Betrag',
+  col_debit: null,
+  col_credit: null,
+  col_counterparty: 'Auftraggeber/Empfänger',
+  col_purpose: 'Verwendungszweck',
+  col_balance: null,
+});
+
 module.exports = db;

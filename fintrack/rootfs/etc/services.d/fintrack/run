@@ -1,9 +1,16 @@
 #!/usr/bin/with-contenv bashio
 set -e
 
-bashio::log.info "Starting FinTrack..."
+bashio::log.info "Starting My Cash Supervisor..."
 
-export PORT=8099
+PORT="$(bashio::config 'port')"
+INGRESS_PORT=8099  # muss mit ingress_port in config.yaml übereinstimmen
+
+if [ "${PORT}" != "${INGRESS_PORT}" ]; then
+  bashio::log.warning "Port ist auf ${PORT} konfiguriert, Ingress ist aber fest auf ${INGRESS_PORT} verdrahtet (config.yaml: ingress_port). Das Ingress-Panel funktioniert nur, wenn der Port bei ${INGRESS_PORT} bleibt."
+fi
+
+export PORT
 export DB_PATH="/data/fintrack.db"
 
 cd /app/server
