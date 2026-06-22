@@ -16,12 +16,12 @@ boot: auto
 # "s6-overlay-suexec: fatal: can only run as pid 1" ab.
 init: false
 ingress: true
-ingress_port: 8099
+# 0 lässt den Supervisor einen freien internen Port zuteilen, statt fix auf
+# 8099 zu bestehen (der z.B. von einem anderen Add-on belegt sein kann). Das
+# Run-Skript liest den tatsächlich zugewiesenen Port über
+# bashio::addon.ingress_port aus.
+ingress_port: 0
 panel_icon: mdi:cash-multiple
 panel_title: My Cash Supervisor
 map:
   - data:rw
-options:
-  port: 8099
-schema:
-  port: "port"

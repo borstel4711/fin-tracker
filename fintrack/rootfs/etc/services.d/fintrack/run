@@ -3,12 +3,11 @@ set -e
 
 bashio::log.info "Starting My Cash Supervisor..."
 
-PORT="$(bashio::config 'port')"
-INGRESS_PORT=8099  # muss mit ingress_port in config.yaml übereinstimmen
-
-if [ "${PORT}" != "${INGRESS_PORT}" ]; then
-  bashio::log.warning "Port ist auf ${PORT} konfiguriert, Ingress ist aber fest auf ${INGRESS_PORT} verdrahtet (config.yaml: ingress_port). Das Ingress-Panel funktioniert nur, wenn der Port bei ${INGRESS_PORT} bleibt."
-fi
+# ingress_port: 0 in config.yaml lässt den Supervisor den tatsächlichen Port
+# dynamisch zuteilen (vermeidet Konflikte, falls 8099 anderswo belegt ist).
+# Den zugewiesenen Port fragen wir hier ab, statt ihn fix anzunehmen.
+PORT="$(bashio::addon.ingress_port)"
+bashio::log.info "Ingress-Port: ${PORT}"
 
 export PORT
 export DB_PATH="/data/fintrack.db"
