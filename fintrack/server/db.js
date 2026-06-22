@@ -103,6 +103,7 @@ function addColumnIfMissing(table, column, definition) {
 addColumnIfMissing('transactions', 'value_date', 'TEXT');
 addColumnIfMissing('import_profiles', 'col_value_date', 'TEXT');
 addColumnIfMissing('categories', 'icon', 'TEXT');
+addColumnIfMissing('categories', 'mode', "TEXT NOT NULL DEFAULT 'recurring'");
 
 // Bestand-Installationen haben ihr "ING CSV"-Profil ggf. angelegt, bevor
 // col_value_date existierte (seedImportProfile legt ein Profil nur einmalig

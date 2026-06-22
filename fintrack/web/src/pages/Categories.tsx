@@ -5,8 +5,19 @@ import MdiIcon from '../components/MdiIcon';
 import styles from './Categories.module.css';
 
 const KINDS: Category['kind'][] = ['fixed', 'variable', 'income', 'transfer'];
+const MODES: Category['mode'][] = ['recurring', 'one_time'];
+const MODE_LABELS: Record<Category['mode'], string> = {
+  recurring: 'Wiederkehrend',
+  one_time: 'Einmalig',
+};
 
-const emptyForm = { name: '', kind: 'variable' as Category['kind'], color: '#2563eb', icon: '' };
+const emptyForm = {
+  name: '',
+  kind: 'variable' as Category['kind'],
+  color: '#2563eb',
+  icon: '',
+  mode: 'recurring' as Category['mode'],
+};
 
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -32,7 +43,7 @@ export default function Categories() {
 
   const startEdit = (c: Category) => {
     setEditingId(c.id);
-    setForm({ name: c.name, kind: c.kind, color: c.color ?? '#2563eb', icon: c.icon ?? '' });
+    setForm({ name: c.name, kind: c.kind, color: c.color ?? '#2563eb', icon: c.icon ?? '', mode: c.mode });
   };
 
   const cancelEdit = () => {
@@ -68,6 +79,17 @@ export default function Categories() {
             </option>
           ))}
         </select>
+        <select
+          className="input"
+          value={form.mode}
+          onChange={(e) => setForm({ ...form, mode: e.target.value as Category['mode'] })}
+        >
+          {MODES.map((m) => (
+            <option key={m} value={m}>
+              {MODE_LABELS[m]}
+            </option>
+          ))}
+        </select>
         <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
         <span className={styles.iconInputGroup}>
           <input
@@ -94,7 +116,7 @@ export default function Categories() {
             <span className={styles.nameRow}>
               <span className={styles.colorDot} style={{ background: c.color ?? undefined }} />
               <MdiIcon name={c.icon} color={c.color} />
-              {c.name} <span className={styles.kind}>({c.kind})</span>
+              {c.name} <span className={styles.kind}>({c.kind} · {MODE_LABELS[c.mode]})</span>
             </span>
             <span className={styles.actions}>
               <button className="link" onClick={() => startEdit(c)}>

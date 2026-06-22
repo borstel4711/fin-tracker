@@ -5,6 +5,7 @@ export interface Category {
   color: string | null;
   kind: 'fixed' | 'variable' | 'income' | 'transfer';
   icon: string | null;
+  mode: 'one_time' | 'recurring';
 }
 
 export interface Rule {
