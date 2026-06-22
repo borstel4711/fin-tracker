@@ -1,9 +1,11 @@
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
+const { log } = require('./log');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'fintrack.db');
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+log(`Opening database at ${DB_PATH}`);
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
@@ -94,6 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id
 function addColumnIfMissing(table, column, definition) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!cols.some((c) => c.name === column)) {
+    log(`Migration: adding column ${table}.${column}`);
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }

@@ -3,6 +3,7 @@ const multer = require('multer');
 const db = require('../db');
 const { parseCsv, normalizeRows } = require('../import');
 const { categorize } = require('../rules/categorize');
+const { log, logError } = require('../log');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -16,8 +17,23 @@ router.post('/import', upload.single('file'), (req, res) => {
   const profile = db.prepare('SELECT * FROM import_profiles WHERE id = ?').get(profileId);
   if (!profile) return res.status(404).json({ error: 'profile not found' });
 
-  const rawRows = parseCsv(req.file.buffer, profile);
-  const rows = normalizeRows(rawRows, profile);
+  let rawRows, rows;
+  try {
+    rawRows = parseCsv(req.file.buffer, profile);
+    rows = normalizeRows(rawRows, profile);
+  } catch (err) {
+    logError(
+      `Import failed for profile "${profile.name}" (file "${req.file.originalname}"):`,
+      err.stack || err
+    );
+    return res.status(400).json({ error: `CSV konnte nicht gelesen werden: ${err.message}` });
+  }
+
+  if (rawRows.length > 0 && rows.length === 0) {
+    logError(
+      `Import for profile "${profile.name}" (file "${req.file.originalname}"): ${rawRows.length} Zeile(n) gelesen, aber 0 davon gueltig normalisiert. Vermutlich falsche Spaltennamen oder skip_rows im Profil.`
+    );
+  }
 
   const insertBatch = db.prepare(
     `INSERT INTO import_batches (profile_id, filename, imported_at, row_count, inserted, skipped)
@@ -70,6 +86,10 @@ router.post('/import', upload.single('file'), (req, res) => {
     inserted,
     skipped,
     batchId
+  );
+
+  log(
+    `Import done: profile "${profile.name}", file "${req.file.originalname}" -> ${inserted} neu, ${skipped} Dubletten (von ${rows.length} Zeilen)`
   );
 
   res.json({ batch_id: batchId, row_count: rows.length, inserted, skipped });
