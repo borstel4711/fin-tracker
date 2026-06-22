@@ -52,15 +52,26 @@ router.post('/import', upload.single('file'), (req, res) => {
       (date, value_date, amount, type, counterparty, purpose, category_id, category_src, source_file, import_batch, hash)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const existsStmt = db.prepare('SELECT 1 FROM transactions WHERE hash = ?');
+  const existsStmt = db.prepare('SELECT id, value_date FROM transactions WHERE hash = ?');
+  const fillValueDateStmt = db.prepare('UPDATE transactions SET value_date = ? WHERE id = ?');
 
   let inserted = 0;
   let skipped = 0;
+  let valueDateFilled = 0;
 
   const run = db.transaction(() => {
     for (const row of rows) {
-      if (existsStmt.get(row.hash)) {
+      const existing = existsStmt.get(row.hash);
+      if (existing) {
         skipped += 1;
+        // Dublettenerkennung hasht nur date/amount/counterparty/purpose, nicht
+        // value_date. Ein erneuter Import (z.B. nach Korrektur des Profils)
+        // soll daher fehlende Wertstellung an bereits vorhandenen Buchungen
+        // nachtragen, statt sie endlos NULL zu lassen.
+        if (existing.value_date == null && row.value_date != null) {
+          fillValueDateStmt.run(row.value_date, existing.id);
+          valueDateFilled += 1;
+        }
         continue;
       }
       const { category_id, category_src } = categorize(row);
@@ -89,10 +100,12 @@ router.post('/import', upload.single('file'), (req, res) => {
   );
 
   log(
-    `Import done: profile "${profile.name}", file "${req.file.originalname}" -> ${inserted} neu, ${skipped} Dubletten (von ${rows.length} Zeilen)`
+    `Import done: profile "${profile.name}", file "${req.file.originalname}" -> ${inserted} neu, ${skipped} Dubletten` +
+      (valueDateFilled ? `, ${valueDateFilled} Wertstellung(en) nachgetragen` : '') +
+      ` (von ${rows.length} Zeilen)`
   );
 
-  res.json({ batch_id: batchId, row_count: rows.length, inserted, skipped });
+  res.json({ batch_id: batchId, row_count: rows.length, inserted, skipped, value_date_filled: valueDateFilled });
 });
 
 router.get('/import/batches', (req, res) => {

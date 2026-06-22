@@ -1,8 +1,8 @@
 name: Finance Tracker
-version: "0.1.6"
+version: "0.1.8"
 slug: fintrack
 description: Einnahmen-/Ausgaben-Überwachung mit CSV-Import
-url: "https://github.com/borstel4711/my-cash-supervisor"
+url: "https://github.com/borstel4711/fin-tracker"
 arch:
   - aarch64
   - amd64

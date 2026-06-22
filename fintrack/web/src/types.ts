@@ -95,4 +95,5 @@ export interface ImportResult {
   row_count: number;
   inserted: number;
   skipped: number;
+  value_date_filled: number;
 }

@@ -30,6 +30,7 @@ export default function ImportPage() {
   const [error, setError] = useState('');
   const [newProfile, setNewProfile] = useState<ProfileForm>(emptyProfile);
   const [showProfileForm, setShowProfileForm] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
 
   const loadProfiles = () => api.get<ImportProfile[]>('/profiles').then(setProfiles).catch(() => {});
 
@@ -56,16 +57,52 @@ export default function ImportPage() {
     }
   };
 
-  const createProfile = async (e: FormEvent) => {
+  const submitProfile = async (e: FormEvent) => {
     e.preventDefault();
     const payload = {
       ...newProfile,
       decimal_comma: Number(newProfile.decimal_comma),
       skip_rows: Number(newProfile.skip_rows),
     };
-    await api.post('/profiles', payload);
+    if (editingProfileId !== null) {
+      await api.patch(`/profiles/${editingProfileId}`, payload);
+    } else {
+      await api.post('/profiles', payload);
+    }
+    cancelProfileForm();
+    loadProfiles();
+  };
+
+  const startEditProfile = (p: ImportProfile) => {
+    setEditingProfileId(p.id);
+    setNewProfile({
+      name: p.name,
+      delimiter: p.delimiter,
+      encoding: p.encoding,
+      date_format: p.date_format,
+      decimal_comma: p.decimal_comma,
+      skip_rows: p.skip_rows,
+      col_date: p.col_date,
+      col_value_date: p.col_value_date ?? '',
+      col_amount: p.col_amount ?? '',
+      col_debit: p.col_debit ?? '',
+      col_credit: p.col_credit ?? '',
+      col_counterparty: p.col_counterparty ?? '',
+      col_purpose: p.col_purpose ?? '',
+      col_balance: p.col_balance ?? '',
+    });
+    setShowProfileForm(true);
+  };
+
+  const cancelProfileForm = () => {
+    setEditingProfileId(null);
     setNewProfile(emptyProfile);
     setShowProfileForm(false);
+  };
+
+  const removeProfile = async (id: number) => {
+    await api.delete(`/profiles/${id}`);
+    if (editingProfileId === id) cancelProfileForm();
     loadProfiles();
   };
 
@@ -94,7 +131,9 @@ export default function ImportPage() {
         {error && <p className={styles.error}>{error}</p>}
         {result && (
           <p className={styles.result}>
-            {result.inserted} neu, {result.skipped} Dubletten übersprungen (von {result.row_count} Zeilen).
+            {result.inserted} neu, {result.skipped} Dubletten übersprungen
+            {result.value_date_filled > 0 && `, ${result.value_date_filled} Wertstellung(en) nachgetragen`} (von{' '}
+            {result.row_count} Zeilen).
           </p>
         )}
       </section>
@@ -102,7 +141,10 @@ export default function ImportPage() {
       <section className={`card ${styles.section}`}>
         <div className={styles.headerRow}>
           <h2 className={styles.title}>Importprofile</h2>
-          <button className="link" onClick={() => setShowProfileForm((v) => !v)}>
+          <button
+            className="link"
+            onClick={() => (showProfileForm ? cancelProfileForm() : setShowProfileForm(true))}
+          >
             {showProfileForm ? 'Abbrechen' : '+ Neues Profil'}
           </button>
         </div>
@@ -110,16 +152,26 @@ export default function ImportPage() {
         <ul className={styles.profileList}>
           {profiles.map((p) => (
             <li key={p.id} className={styles.profileItem}>
-              <span className={styles.profileName}>{p.name}</span>{' '}
-              <span className={styles.profileMeta}>
-                ({p.delimiter} · {p.encoding} · {p.date_format})
+              <span>
+                <span className={styles.profileName}>{p.name}</span>{' '}
+                <span className={styles.profileMeta}>
+                  ({p.delimiter} · {p.encoding} · {p.date_format})
+                </span>
+              </span>
+              <span className={styles.profileActions}>
+                <button className="link" onClick={() => startEditProfile(p)}>
+                  bearbeiten
+                </button>
+                <button className="deleteLink" onClick={() => removeProfile(p.id)}>
+                  löschen
+                </button>
               </span>
             </li>
           ))}
         </ul>
 
         {showProfileForm && (
-          <form onSubmit={createProfile} className={styles.profileForm}>
+          <form onSubmit={submitProfile} className={styles.profileForm}>
             <Field label="Name" value={newProfile.name} onChange={(v) => setNewProfile({ ...newProfile, name: v })} required />
             <Field
               label="Trennzeichen"
@@ -189,8 +241,13 @@ export default function ImportPage() {
             />
             <div className={styles.fieldSpan}>
               <button type="submit" className="button buttonPrimary">
-                Profil speichern
+                {editingProfileId !== null ? 'Speichern' : 'Profil speichern'}
               </button>
+              {editingProfileId !== null && (
+                <button type="button" className="button buttonSecondary" onClick={cancelProfileForm}>
+                  Abbrechen
+                </button>
+              )}
             </div>
           </form>
         )}
