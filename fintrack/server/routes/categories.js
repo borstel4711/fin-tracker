@@ -8,11 +8,11 @@ router.get('/categories', (req, res) => {
 });
 
 router.post('/categories', (req, res) => {
-  const { name, parent_id = null, color = null, kind = 'variable', icon = null } = req.body;
+  const { name, parent_id = null, color = null, kind = 'variable', icon = null, mode = 'recurring' } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   const info = db
-    .prepare('INSERT INTO categories (name, parent_id, color, kind, icon) VALUES (?, ?, ?, ?, ?)')
-    .run(name, parent_id, color, kind, icon);
+    .prepare('INSERT INTO categories (name, parent_id, color, kind, icon, mode) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(name, parent_id, color, kind, icon, mode);
   res.status(201).json({ id: info.lastInsertRowid });
 });
 
@@ -20,12 +20,13 @@ router.patch('/categories/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
   const merged = { ...existing, ...req.body };
-  db.prepare('UPDATE categories SET name = ?, parent_id = ?, color = ?, kind = ?, icon = ? WHERE id = ?').run(
+  db.prepare('UPDATE categories SET name = ?, parent_id = ?, color = ?, kind = ?, icon = ?, mode = ? WHERE id = ?').run(
     merged.name,
     merged.parent_id,
     merged.color,
     merged.kind,
     merged.icon,
+    merged.mode,
     req.params.id
   );
   res.json(merged);

@@ -63,6 +63,48 @@ router.get('/reports/by-category', (req, res) => {
   );
 });
 
+function categoryMonthlyTotals(type, from, to) {
+  const amountExpr = type === 'income' ? 't.amount' : '-t.amount';
+  const amountFilter = type === 'income' ? 't.amount > 0' : 't.amount < 0';
+
+  let query = `
+    SELECT substr(t.date, 1, 7) AS month, c.id AS category_id, c.name, c.color,
+           SUM(${amountExpr}) AS total
+    FROM transactions t
+    LEFT JOIN categories c ON c.id = t.category_id
+    WHERE ${amountFilter}
+  `;
+  const params = [];
+  if (from) {
+    query += ' AND t.date >= ?';
+    params.push(from);
+  }
+  if (to) {
+    query += ' AND t.date <= ?';
+    params.push(to);
+  }
+  query += ' GROUP BY month, t.category_id ORDER BY month ASC';
+
+  return db
+    .prepare(query)
+    .all(...params)
+    .map((r) => ({
+      month: r.month,
+      category_id: r.category_id,
+      name: r.name || 'Nicht kategorisiert',
+      color: r.color,
+      total: r.total || 0,
+    }));
+}
+
+router.get('/reports/by-category-monthly', (req, res) => {
+  const { type, from, to } = req.query;
+  if (type !== 'income' && type !== 'expense') {
+    return res.status(400).json({ error: 'type must be "income" or "expense"' });
+  }
+  res.json(categoryMonthlyTotals(type, from, to));
+});
+
 function shiftMonth(month, delta) {
   const [y, m] = month.split('-').map(Number);
   const d = new Date(y, m - 1 + delta, 1);
