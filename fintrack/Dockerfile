@@ -13,7 +13,5 @@ RUN cd web && npm install && npm run build
 COPY server ./server
 RUN cd server && npm install --omit=dev
 
-COPY run.sh /
-RUN chmod a+x /run.sh
-
-CMD [ "/run.sh" ]
+COPY rootfs /
+RUN chmod a+x /etc/services.d/fintrack/run
