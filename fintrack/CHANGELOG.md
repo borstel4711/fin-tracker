@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.9
+
+- Übersicht: Y-Achsen von Monatsbilanz und Kontostandsverlauf zeigen jetzt
+  Währungsbeträge mit zwei Dezimalstellen statt Rohwerten.
+- Übersicht: Im Kontostandsverlauf heißt die Serie jetzt "Saldo" (vorher
+  "Soll/Ist-Stützpunkt"); zusätzlich projiziert eine neue, gestrichelte
+  Prognose-Linie den Kontostand 30/60/90 Tage in die Zukunft, basierend auf
+  der durchschnittlichen täglichen Veränderung.
+- Übersicht: zwei neue Säulendiagramme "Ausgaben nach Kategorie (Verlauf)"
+  und "Einnahmen nach Kategorie (Verlauf)" zeigen die Kategorieverteilung
+  pro Monat, berücksichtigen den Datumsbereichsfilter und werden über einen
+  neuen Endpunkt `GET /reports/by-category-monthly` beliefert.
+- Kategorien: neues Feld "Modus" (Einmalig/Wiederkehrend) zur
+  Klassifizierung, vorbereitend für spätere Auswertungen in den Charts.
+- Saldo: Anker lassen sich jetzt im UI bearbeiten (nicht mehr nur anlegen),
+  analog zum bestehenden "bearbeiten"/"Abbrechen"-Muster bei Kategorien und
+  Importprofilen.
+
 ## 0.1.8
 
 - App umbenannt zu "Finance Tracker" (Anzeigename in Add-on-Liste, Ingress-
