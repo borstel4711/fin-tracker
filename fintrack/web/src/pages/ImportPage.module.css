@@ -1,0 +1,88 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--red);
+}
+
+.result {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profileList {
+  font-size: 13px;
+  list-style: none;
+}
+
+.profileItem {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.profileList li:first-child {
+  border-top: none;
+}
+
+.profileName {
+  font-weight: 500;
+}
+
+.profileMeta {
+  color: var(--text-muted);
+}
+
+.profileForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 13px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.fieldSpan {
+  grid-column: span 2;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  color: var(--text-muted);
+}

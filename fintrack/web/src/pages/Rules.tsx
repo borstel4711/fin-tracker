@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { Category, Rule } from '../types';
+import styles from './Rules.module.css';
 
 const emptyRule = {
   match_field: 'counterparty' as Rule['match_field'],
@@ -39,19 +40,19 @@ export default function Rules() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Regeln</h2>
-        <button className="text-sm bg-slate-800 text-white px-3 py-1.5 rounded" onClick={recategorize}>
+    <div className={styles.page}>
+      <div className={styles.headerRow}>
+        <h2 className={styles.title}>Regeln</h2>
+        <button className="button buttonSecondary" onClick={recategorize}>
           Regeln neu anwenden
         </button>
       </div>
 
-      <form onSubmit={create} className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-2 items-end text-sm">
+      <form onSubmit={create} className={`card ${styles.form}`}>
         <select
           value={form.match_field}
           onChange={(e) => setForm({ ...form, match_field: e.target.value as Rule['match_field'] })}
-          className="border rounded px-2 py-1"
+          className="input"
         >
           <option value="counterparty">Empfänger</option>
           <option value="purpose">Zweck</option>
@@ -60,21 +61,21 @@ export default function Rules() {
         <select
           value={form.match_type}
           onChange={(e) => setForm({ ...form, match_type: e.target.value as Rule['match_type'] })}
-          className="border rounded px-2 py-1"
+          className="input"
         >
           <option value="contains">enthält</option>
           <option value="regex">regex</option>
           <option value="exact">exakt</option>
         </select>
         <input
-          className="border rounded px-2 py-1"
+          className="input"
           placeholder="Muster"
           value={form.pattern}
           onChange={(e) => setForm({ ...form, pattern: e.target.value })}
           required
         />
         <select
-          className="border rounded px-2 py-1"
+          className="input"
           value={form.category_id}
           onChange={(e) => setForm({ ...form, category_id: e.target.value })}
           required
@@ -88,22 +89,22 @@ export default function Rules() {
         </select>
         <input
           type="number"
-          className="border rounded px-2 py-1 w-20"
+          className={`input ${styles.priorityInput}`}
           value={form.priority}
           onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
         />
-        <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded">
+        <button type="submit" className="button buttonPrimary">
           Regel hinzufügen
         </button>
       </form>
 
-      <ul className="bg-white rounded-lg shadow divide-y text-sm">
+      <ul className={`cardFlush ${styles.list}`}>
         {rules.map((r) => (
-          <li key={r.id} className="p-3 flex items-center justify-between">
+          <li key={r.id} className={styles.listItem}>
             <span>
               [{r.priority}] {r.match_field} {r.match_type} „{r.pattern}" → Kategorie #{r.category_id}
             </span>
-            <button className="text-red-600 hover:underline" onClick={() => remove(r.id)}>
+            <button className="deleteLink" onClick={() => remove(r.id)}>
               löschen
             </button>
           </li>

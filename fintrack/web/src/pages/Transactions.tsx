@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import type { Category, Transaction } from '../types';
+import styles from './Transactions.module.css';
 
 export default function Transactions() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -27,10 +28,10 @@ export default function Transactions() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <h2 className="text-base font-semibold">Buchungen</h2>
-        <label className="text-sm flex items-center gap-1">
+    <div className={styles.page}>
+      <div className={styles.headerRow}>
+        <h2 className={styles.title}>Buchungen</h2>
+        <label className={styles.filterLabel}>
           <input
             type="checkbox"
             checked={uncategorized}
@@ -40,31 +41,31 @@ export default function Transactions() {
         </label>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-left">
+      <div className={`cardFlush ${styles.tableWrap}`}>
+        <table className={styles.table}>
+          <thead>
             <tr>
-              <th className="p-2">Datum</th>
-              <th className="p-2">Wertstellung</th>
-              <th className="p-2">Empfänger</th>
-              <th className="p-2">Zweck</th>
-              <th className="p-2 text-right">Betrag</th>
-              <th className="p-2">Kategorie</th>
+              <th>Datum</th>
+              <th>Wertstellung</th>
+              <th>Empfänger</th>
+              <th>Zweck</th>
+              <th className={styles.amountRight}>Betrag</th>
+              <th>Kategorie</th>
             </tr>
           </thead>
           <tbody>
             {transactions.map((tx) => (
-              <tr key={tx.id} className="border-t">
-                <td className="p-2 whitespace-nowrap">{tx.date}</td>
-                <td className="p-2 whitespace-nowrap text-slate-500">{tx.value_date ?? '–'}</td>
-                <td className="p-2">{tx.counterparty}</td>
-                <td className="p-2 text-slate-500">{tx.purpose}</td>
-                <td className={`p-2 text-right ${tx.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <tr key={tx.id}>
+                <td className={styles.nowrap}>{tx.date}</td>
+                <td className={`${styles.nowrap} ${styles.muted}`}>{tx.value_date ?? '–'}</td>
+                <td>{tx.counterparty}</td>
+                <td className={styles.muted}>{tx.purpose}</td>
+                <td className={`${styles.amountRight} ${tx.amount < 0 ? styles.negative : styles.positive}`}>
                   {tx.amount.toFixed(2)} €
                 </td>
-                <td className="p-2">
+                <td>
                   <select
-                    className="border rounded px-1 py-0.5"
+                    className="input inputSmall"
                     value={tx.category_id ?? ''}
                     onChange={(e) => updateCategory(tx.id, e.target.value)}
                   >

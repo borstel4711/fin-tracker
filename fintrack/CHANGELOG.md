@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.4
+
+- Frontend-Styling überarbeitet und an das Design von my-wallpanel
+  angeglichen: Dark-Mode als Standard mit per Toggle umschaltbarem
+  Light-Mode (Auswahl bleibt über `localStorage` erhalten), einheitliches
+  Farbschema, Abstände und Border-Radius über CSS-Variablen, neue
+  Glass-Card-Optik für Panels und Tabellen, überarbeitete Titelzeile mit
+  Navigation (inkl. mobilem Menü unter 768px).
+- Tailwind CSS vollständig entfernt; das Frontend verwendet jetzt
+  ausschließlich CSS Modules mit den gemeinsamen Design-Tokens, analog zu
+  my-wallpanel.
+
 ## 0.1.3
 
 - Port ist jetzt über die Add-on-Konfiguration einstellbar (`port`, Standard

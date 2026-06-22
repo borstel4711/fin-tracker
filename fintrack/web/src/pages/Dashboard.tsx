@@ -14,7 +14,9 @@ import {
   Cell,
 } from 'recharts';
 import { api } from '../api';
+import { useTheme } from '../ThemeContext';
 import type { MonthlyTotal, BalanceSeriesResponse, CategoryTotal, CompareResponse, Transaction } from '../types';
+import styles from './Dashboard.module.css';
 
 const COLORS = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#db2777'];
 
@@ -24,6 +26,7 @@ function currentMonth(): string {
 }
 
 export default function Dashboard() {
+  const { theme } = useTheme();
   const [monthly, setMonthly] = useState<MonthlyTotal[]>([]);
   const [balanceSeries, setBalanceSeries] = useState<BalanceSeriesResponse>({
     start: null,
@@ -56,17 +59,26 @@ export default function Dashboard() {
     [balanceSeries]
   );
 
+  const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
+  const axisColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
+  const tooltipStyle = {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    color: 'var(--text)',
+  };
+
   return (
-    <div className="space-y-8">
+    <div className={styles.page}>
       <section>
-        <h2 className="text-base font-semibold mb-2">Monatsbilanz</h2>
-        <div className="bg-white rounded-lg shadow p-4 h-72">
+        <h2 className={styles.sectionTitle}>Monatsbilanz</h2>
+        <div className={`card ${styles.chartCard}`}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+              <XAxis dataKey="month" tick={{ fill: axisColor, fontSize: 12 }} />
+              <YAxis tick={{ fill: axisColor, fontSize: 12 }} />
+              <Tooltip contentStyle={tooltipStyle} />
               <Legend />
               <Bar dataKey="income" name="Einnahmen" fill="#16a34a" />
               <Bar dataKey="expense" name="Ausgaben" fill="#dc2626" />
@@ -77,14 +89,14 @@ export default function Dashboard() {
       </section>
 
       <section>
-        <h2 className="text-base font-semibold mb-2">Kontostandsverlauf</h2>
-        <div className="bg-white rounded-lg shadow p-4 h-72">
+        <h2 className={styles.sectionTitle}>Kontostandsverlauf</h2>
+        <div className={`card ${styles.chartCard}`}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={balanceChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+              <XAxis dataKey="date" tick={{ fill: axisColor, fontSize: 12 }} />
+              <YAxis tick={{ fill: axisColor, fontSize: 12 }} />
+              <Tooltip contentStyle={tooltipStyle} />
               <Line type="monotone" dataKey="balance" name="Berechnet" stroke="#2563eb" dot={false} />
               <Line
                 type="monotone"
@@ -98,16 +110,16 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
         {balanceSeries.checkpoints.some((c) => Math.abs(c.diff) > 0.01) && (
-          <p className="text-sm text-amber-600 mt-2">
+          <p className={styles.warning}>
             Achtung: Abweichung zwischen berechnetem und eingetragenem Saldo an mindestens einem Stützpunkt.
           </p>
         )}
       </section>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className={styles.grid2}>
         <section>
-          <h2 className="text-base font-semibold mb-2">Ausgaben nach Kategorie ({month})</h2>
-          <div className="bg-white rounded-lg shadow p-4 h-64">
+          <h2 className={styles.sectionTitle}>Ausgaben nach Kategorie ({month})</h2>
+          <div className={`card ${styles.chartCardSmall}`}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={byCategory} dataKey="total" nameKey="name" innerRadius={50} outerRadius={80}>
@@ -115,7 +127,7 @@ export default function Dashboard() {
                     <Cell key={entry.category_id ?? 'none'} fill={entry.color || COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -123,9 +135,9 @@ export default function Dashboard() {
         </section>
 
         <section>
-          <h2 className="text-base font-semibold mb-2">Monatsvergleich</h2>
+          <h2 className={styles.sectionTitle}>Monatsvergleich</h2>
           {compare && (
-            <div className="bg-white rounded-lg shadow p-4 space-y-2 text-sm">
+            <div className={`card ${styles.compareCard}`}>
               <CompareRow label="Dieser Monat" data={compare.month} />
               <CompareRow label="Vormonat" data={compare.previousMonth} />
               <CompareRow label="Vorjahresmonat" data={compare.previousYear} />
@@ -135,7 +147,7 @@ export default function Dashboard() {
       </div>
 
       <section>
-        <a href="#/transactions?uncategorized=true" className="text-sm text-blue-600 hover:underline">
+        <a href="#/transactions?uncategorized=true" className={`link ${styles.footerLink}`}>
           {uncategorizedCount} nicht kategorisierte Buchung(en) ansehen →
         </a>
       </section>
@@ -145,8 +157,8 @@ export default function Dashboard() {
 
 function CompareRow({ label, data }: { label: string; data: MonthlyTotal }) {
   return (
-    <div className="flex justify-between border-b last:border-0 pb-1">
-      <span className="text-slate-500">{label}</span>
+    <div className={styles.compareRow}>
+      <span className={styles.compareLabel}>{label}</span>
       <span>
         Ein. {data.income.toFixed(2)} € · Aus. {data.expense.toFixed(2)} € · Netto {data.net.toFixed(2)} €
       </span>

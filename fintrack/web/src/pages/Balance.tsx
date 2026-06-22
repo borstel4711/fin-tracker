@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { BalanceAnchor, BalanceSeriesResponse } from '../types';
+import styles from './Balance.module.css';
 
 const emptyAnchor = { date: '', balance: '', type: 'checkpoint' as BalanceAnchor['type'], note: '' };
 
@@ -31,13 +32,13 @@ export default function Balance() {
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-base font-semibold">Saldo-Anker</h2>
+    <div className={styles.page}>
+      <h2 className={styles.title}>Saldo-Anker</h2>
 
-      <form onSubmit={create} className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-2 items-end text-sm">
+      <form onSubmit={create} className={`card ${styles.form}`}>
         <input
           type="date"
-          className="border rounded px-2 py-1"
+          className="input"
           value={form.date}
           onChange={(e) => setForm({ ...form, date: e.target.value })}
           required
@@ -45,14 +46,14 @@ export default function Balance() {
         <input
           type="number"
           step="0.01"
-          className="border rounded px-2 py-1"
+          className="input"
           placeholder="Saldo"
           value={form.balance}
           onChange={(e) => setForm({ ...form, balance: e.target.value })}
           required
         />
         <select
-          className="border rounded px-2 py-1"
+          className="input"
           value={form.type}
           onChange={(e) => setForm({ ...form, type: e.target.value as BalanceAnchor['type'] })}
         >
@@ -61,44 +62,46 @@ export default function Balance() {
           <option value="month_end">Monatsende</option>
         </select>
         <input
-          className="border rounded px-2 py-1"
+          className="input"
           placeholder="Notiz"
           value={form.note}
           onChange={(e) => setForm({ ...form, note: e.target.value })}
         />
-        <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded">
+        <button type="submit" className="button buttonPrimary">
           Anker speichern
         </button>
       </form>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
 
-      <table className="w-full bg-white rounded-lg shadow text-sm">
-        <thead className="bg-slate-100 text-left">
-          <tr>
-            <th className="p-2">Datum</th>
-            <th className="p-2">Typ</th>
-            <th className="p-2 text-right">Eingetragen</th>
-            <th className="p-2 text-right">Berechnet</th>
-            <th className="p-2 text-right">Diff</th>
-          </tr>
-        </thead>
-        <tbody>
-          {anchors.map((a) => {
-            const cp = series.checkpoints.find((c) => c.id === a.id);
-            return (
-              <tr key={a.id} className="border-t">
-                <td className="p-2">{a.date}</td>
-                <td className="p-2">{a.type}</td>
-                <td className="p-2 text-right">{a.balance.toFixed(2)} €</td>
-                <td className="p-2 text-right">{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
-                <td className={`p-2 text-right ${cp && Math.abs(cp.diff) > 0.01 ? 'text-red-600 font-semibold' : ''}`}>
-                  {cp ? `${cp.diff.toFixed(2)} €` : '–'}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="cardFlush">
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Typ</th>
+              <th className={styles.amountRight}>Eingetragen</th>
+              <th className={styles.amountRight}>Berechnet</th>
+              <th className={styles.amountRight}>Diff</th>
+            </tr>
+          </thead>
+          <tbody>
+            {anchors.map((a) => {
+              const cp = series.checkpoints.find((c) => c.id === a.id);
+              return (
+                <tr key={a.id}>
+                  <td>{a.date}</td>
+                  <td>{a.type}</td>
+                  <td className={styles.amountRight}>{a.balance.toFixed(2)} €</td>
+                  <td className={styles.amountRight}>{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
+                  <td className={`${styles.amountRight} ${cp && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''}`}>
+                    {cp ? `${cp.diff.toFixed(2)} €` : '–'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,65 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.chartCard {
+  height: 288px;
+}
+
+.chartCardSmall {
+  height: 256px;
+}
+
+.warning {
+  font-size: 13px;
+  color: var(--orange);
+  margin-top: 8px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+
+@media (min-width: 768px) {
+  .grid2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.compareCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.compareRow {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.compareRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.compareLabel {
+  color: var(--text-muted);
+}
+
+.footerLink {
+  font-size: 13px;
+}

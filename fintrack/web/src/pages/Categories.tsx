@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { Category } from '../types';
+import styles from './Categories.module.css';
 
 const KINDS: Category['kind'][] = ['fixed', 'variable', 'income', 'transfer'];
 
@@ -26,18 +27,18 @@ export default function Categories() {
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-base font-semibold">Kategorien</h2>
-      <form onSubmit={create} className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-2 items-end text-sm">
+    <div className={styles.page}>
+      <h2 className={styles.title}>Kategorien</h2>
+      <form onSubmit={create} className={`card ${styles.form}`}>
         <input
-          className="border rounded px-2 py-1"
+          className="input"
           placeholder="Name"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
         />
         <select
-          className="border rounded px-2 py-1"
+          className="input"
           value={form.kind}
           onChange={(e) => setForm({ ...form, kind: e.target.value as Category['kind'] })}
         >
@@ -48,19 +49,19 @@ export default function Categories() {
           ))}
         </select>
         <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
-        <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded">
+        <button type="submit" className="button buttonPrimary">
           Hinzufügen
         </button>
       </form>
 
-      <ul className="bg-white rounded-lg shadow divide-y text-sm">
+      <ul className={`cardFlush ${styles.list}`}>
         {categories.map((c) => (
-          <li key={c.id} className="p-3 flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block" style={{ background: c.color ?? undefined }} />
-              {c.name} <span className="text-slate-400">({c.kind})</span>
+          <li key={c.id} className={styles.listItem}>
+            <span className={styles.nameRow}>
+              <span className={styles.colorDot} style={{ background: c.color ?? undefined }} />
+              {c.name} <span className={styles.kind}>({c.kind})</span>
             </span>
-            <button className="text-red-600 hover:underline" onClick={() => remove(c.id)}>
+            <button className="deleteLink" onClick={() => remove(c.id)}>
               löschen
             </button>
           </li>

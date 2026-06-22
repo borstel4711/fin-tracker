@@ -1,0 +1,121 @@
+.topBar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 60px;
+  padding: 0 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.navLink:hover { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.active { background: var(--surface2); color: var(--text) !important; border-color: var(--border); font-weight: 600; }
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.themeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  color: var(--text-muted);
+  transition: color 0.15s, background 0.15s;
+}
+.themeToggle:hover { color: var(--text); background: var(--surface2); }
+
+.menuToggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  color: var(--text);
+}
+.menuToggle:hover { background: var(--surface2); }
+
+.main {
+  padding: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .header { padding: 0 12px; height: 52px; }
+
+  .menuToggle { display: flex; order: -1; }
+
+  .nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 12px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    z-index: 150;
+    overflow: auto;
+  }
+
+  .navOpen { display: flex; }
+
+  .navLink { padding: 10px 14px; font-size: 14px; justify-content: flex-start; }
+
+  .main { padding: 16px; }
+}

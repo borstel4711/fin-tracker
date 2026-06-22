@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { ImportProfile, ImportResult } from '../types';
+import styles from './ImportPage.module.css';
 
 type ProfileForm = Omit<ImportProfile, 'id'>;
 
@@ -69,11 +70,15 @@ export default function ImportPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="bg-white rounded-lg shadow p-4 space-y-3">
-        <h2 className="text-base font-semibold">CSV importieren</h2>
-        <form onSubmit={submitImport} className="space-y-3">
-          <select className="border rounded px-2 py-1 w-full" value={profileId} onChange={(e) => setProfileId(e.target.value)}>
+    <div className={styles.page}>
+      <section className={`card ${styles.section}`}>
+        <h2 className={styles.title}>CSV importieren</h2>
+        <form onSubmit={submitImport} className={styles.form}>
+          <select
+            className={`input ${styles.fullWidth}`}
+            value={profileId}
+            onChange={(e) => setProfileId(e.target.value)}
+          >
             <option value="">Importprofil wählen…</option>
             {profiles.map((p) => (
               <option key={p.id} value={p.id}>
@@ -82,31 +87,31 @@ export default function ImportPage() {
             ))}
           </select>
           <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-          <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm">
+          <button type="submit" className="button buttonPrimary">
             Importieren
           </button>
         </form>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className={styles.error}>{error}</p>}
         {result && (
-          <p className="text-sm text-slate-600">
+          <p className={styles.result}>
             {result.inserted} neu, {result.skipped} Dubletten übersprungen (von {result.row_count} Zeilen).
           </p>
         )}
       </section>
 
-      <section className="bg-white rounded-lg shadow p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Importprofile</h2>
-          <button className="text-sm text-blue-600 hover:underline" onClick={() => setShowProfileForm((v) => !v)}>
+      <section className={`card ${styles.section}`}>
+        <div className={styles.headerRow}>
+          <h2 className={styles.title}>Importprofile</h2>
+          <button className="link" onClick={() => setShowProfileForm((v) => !v)}>
             {showProfileForm ? 'Abbrechen' : '+ Neues Profil'}
           </button>
         </div>
 
-        <ul className="text-sm divide-y">
+        <ul className={styles.profileList}>
           {profiles.map((p) => (
-            <li key={p.id} className="py-2">
-              <span className="font-medium">{p.name}</span>{' '}
-              <span className="text-slate-500">
+            <li key={p.id} className={styles.profileItem}>
+              <span className={styles.profileName}>{p.name}</span>{' '}
+              <span className={styles.profileMeta}>
                 ({p.delimiter} · {p.encoding} · {p.date_format})
               </span>
             </li>
@@ -114,7 +119,7 @@ export default function ImportPage() {
         </ul>
 
         {showProfileForm && (
-          <form onSubmit={createProfile} className="grid grid-cols-2 gap-2 text-sm pt-2 border-t">
+          <form onSubmit={createProfile} className={styles.profileForm}>
             <Field label="Name" value={newProfile.name} onChange={(v) => setNewProfile({ ...newProfile, name: v })} required />
             <Field
               label="Trennzeichen"
@@ -182,8 +187,8 @@ export default function ImportPage() {
               value={newProfile.col_balance ?? ''}
               onChange={(v) => setNewProfile({ ...newProfile, col_balance: v })}
             />
-            <div className="col-span-2">
-              <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm">
+            <div className={styles.fieldSpan}>
+              <button type="submit" className="button buttonPrimary">
                 Profil speichern
               </button>
             </div>
@@ -206,9 +211,9 @@ function Field({
   required?: boolean;
 }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-slate-500">{label}</span>
-      <input className="border rounded px-2 py-1" value={value} required={required} onChange={(e) => onChange(e.target.value)} />
+    <label className={styles.field}>
+      <span className={styles.fieldLabel}>{label}</span>
+      <input className="input" value={value} required={required} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
