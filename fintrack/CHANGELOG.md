@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- `init: false` in der Add-on-Konfiguration ergänzt. Damit wird s6-overlay v3
+  des Base-Images korrekt als PID 1 ausgeführt; behebt den Fehlstart
+  `s6-overlay-suexec: fatal: can only run as pid 1`.
+
 ## 0.1.1
 
 - App umbenannt zu "My Cash Supervisor" (Anzeigename in Add-on-Liste,

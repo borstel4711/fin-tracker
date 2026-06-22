@@ -1,5 +1,5 @@
 name: My Cash Supervisor
-version: "0.1.1"
+version: "0.1.2"
 slug: fintrack
 description: Einnahmen-/Ausgaben-Überwachung mit CSV-Import
 url: "https://github.com/borstel4711/my-cash-supervisor"
@@ -11,6 +11,10 @@ arch:
   - i386
 startup: application
 boot: auto
+# s6-overlay v3 (Base-Image) muss selbst PID 1 sein. Ohne init: false
+# injiziert der Supervisor Dockers eigenes Init als PID 1 und s6 bricht mit
+# "s6-overlay-suexec: fatal: can only run as pid 1" ab.
+init: false
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:cash-multiple
