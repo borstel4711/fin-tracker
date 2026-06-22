@@ -10,6 +10,7 @@ export default function Balance() {
   const [anchors, setAnchors] = useState<BalanceAnchor[]>([]);
   const [series, setSeries] = useState<BalanceSeriesResponse>({ start: null, series: [], checkpoints: [] });
   const [form, setForm] = useState(emptyAnchor);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
   const load = () => {
@@ -20,23 +21,39 @@ export default function Balance() {
     load();
   }, []);
 
-  const create = async (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    const payload = { ...form, balance: Number(form.balance) };
     try {
-      await api.post('/balance/anchors', { ...form, balance: Number(form.balance) });
-      setForm(emptyAnchor);
+      if (editingId !== null) {
+        await api.patch(`/balance/anchors/${editingId}`, payload);
+      } else {
+        await api.post('/balance/anchors', payload);
+      }
+      cancelEdit();
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   };
 
+  const startEdit = (a: BalanceAnchor) => {
+    setError('');
+    setEditingId(a.id);
+    setForm({ date: a.date, balance: String(a.balance), type: a.type, note: a.note ?? '' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm(emptyAnchor);
+  };
+
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Saldo-Anker</h2>
 
-      <form onSubmit={create} className={`card ${styles.form}`}>
+      <form onSubmit={submit} className={`card ${styles.form}`}>
         <input
           type="date"
           className="input"
@@ -69,8 +86,13 @@ export default function Balance() {
           onChange={(e) => setForm({ ...form, note: e.target.value })}
         />
         <button type="submit" className="button buttonPrimary">
-          Anker speichern
+          {editingId !== null ? 'Speichern' : 'Anker speichern'}
         </button>
+        {editingId !== null && (
+          <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
+            Abbrechen
+          </button>
+        )}
       </form>
       {error && <p className={styles.error}>{error}</p>}
 
@@ -83,6 +105,7 @@ export default function Balance() {
               <th className={styles.amountRight}>Eingetragen</th>
               <th className={styles.amountRight}>Berechnet</th>
               <th className={styles.amountRight}>Diff</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -96,6 +119,11 @@ export default function Balance() {
                   <td className={styles.amountRight}>{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
                   <td className={`${styles.amountRight} ${cp && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''}`}>
                     {cp ? `${cp.diff.toFixed(2)} €` : '–'}
+                  </td>
+                  <td>
+                    <button className="link" onClick={() => startEdit(a)}>
+                      bearbeiten
+                    </button>
                   </td>
                 </tr>
               );

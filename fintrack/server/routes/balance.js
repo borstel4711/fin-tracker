@@ -24,6 +24,31 @@ router.post('/balance/anchors', (req, res) => {
   res.status(201).json({ id: info.lastInsertRowid });
 });
 
+router.patch('/balance/anchors/:id', (req, res) => {
+  const existing = db.prepare('SELECT * FROM balance_anchors WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not found' });
+  const merged = { ...existing, ...req.body };
+  if (!merged.date || merged.balance == null) {
+    return res.status(400).json({ error: 'date and balance required' });
+  }
+  if (merged.type === 'start') {
+    const otherStart = db
+      .prepare("SELECT id FROM balance_anchors WHERE type = 'start' AND id != ?")
+      .get(req.params.id);
+    if (otherStart) {
+      return res.status(409).json({ error: 'a start anchor already exists' });
+    }
+  }
+  db.prepare('UPDATE balance_anchors SET date = ?, balance = ?, type = ?, note = ? WHERE id = ?').run(
+    merged.date,
+    merged.balance,
+    merged.type,
+    merged.note || null,
+    req.params.id
+  );
+  res.json(merged);
+});
+
 router.get('/balance/series', (req, res) => {
   const { from, to } = req.query;
   const start = db
