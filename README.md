@@ -1,4 +1,4 @@
-# FinTrack
+# My Cash Supervisor
 
 CSV-basierte Haushaltsfinanz-App als Home-Assistant-Add-on (Ingress-only).
 Siehe [CONCEPT.md](./CONCEPT.md) für Architektur, Datenmodell und API.
@@ -6,8 +6,8 @@ Siehe [CONCEPT.md](./CONCEPT.md) für Architektur, Datenmodell und API.
 ## Als HA Add-on installieren
 
 In Home Assistant unter **Einstellungen → Add-ons → Add-on-Store → ⋮ →
-Repositories** diese GitHub-URL eintragen. FinTrack erscheint danach in der
-Liste verfügbarer Add-ons.
+Repositories** diese GitHub-URL eintragen. My Cash Supervisor erscheint danach
+in der Liste verfügbarer Add-ons.
 
 ## Lokale Entwicklung
 

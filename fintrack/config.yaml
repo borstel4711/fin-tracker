@@ -1,5 +1,5 @@
-name: FinTrack
-version: "0.1.0"
+name: My Cash Supervisor
+version: "0.1.1"
 slug: fintrack
 description: Einnahmen-/Ausgaben-Überwachung mit CSV-Import
 url: "https://github.com/borstel4711/my-cash-supervisor"
@@ -14,7 +14,7 @@ boot: auto
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:cash-multiple
-panel_title: FinTrack
+panel_title: My Cash Supervisor
 map:
   - data:rw
 options: {}

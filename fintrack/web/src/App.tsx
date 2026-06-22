@@ -20,7 +20,7 @@ export default function App() {
     <HashRouter>
       <div className="min-h-screen bg-slate-50 text-slate-900">
         <header className="bg-slate-900 text-white px-4 py-3">
-          <h1 className="text-lg font-semibold mb-2">FinTrack</h1>
+          <h1 className="text-lg font-semibold mb-2">My Cash Supervisor</h1>
           <nav className="flex gap-4 text-sm">
             {navItems.map((item) => (
               <NavLink
