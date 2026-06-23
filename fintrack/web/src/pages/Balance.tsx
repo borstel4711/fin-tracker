@@ -239,8 +239,8 @@ export default function Balance() {
       </div>
 
       <section>
-        <h3 className={styles.sectionTitle}>Saldenverlauf</h3>
         <div className={`card ${styles.chartCard}`}>
+          <h3 className={styles.sectionTitle}>Saldenverlauf</h3>
           <Chart options={historyOptions} series={historySeries} type="line" height="100%" />
         </div>
       </section>
