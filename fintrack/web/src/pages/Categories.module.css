@@ -136,3 +136,36 @@
 .heatmapCard {
   height: 360px;
 }
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 12px;
+  transition: all 0.15s;
+  opacity: 0.5;
+}
+
+.pill:hover {
+  color: var(--text);
+  border-color: var(--accent2);
+  opacity: 0.8;
+}
+
+.pillActive {
+  border-color: var(--accent2);
+  opacity: 1;
+}

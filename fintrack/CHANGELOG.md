@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.13
+
+- Kategorien: Heatmap "Kategorie × Monat" jetzt dark-mode-kompatibel.
+  Vorzeichenbehaftete Beträge statt absoluter Werte, dark-mode-feste
+  Farbskala, die von einer neutralen Mitte aus in Richtung Rot (Ausgaben)
+  bzw. Grün (Einnahmen) ausschlägt (vorher: einfarbig, lief in dunklen
+  Themes auf weiß/blass aus).
+- Kategorien: einzelne Kategorien lassen sich jetzt über Klick-Pills
+  oberhalb der Heatmap ausblenden, analog zu den Kategorie-Filter-Pills auf
+  der Buchungsseite.
+
 ## 0.1.12
 
 - Kategorien: neue sortierbare Übersichtstabelle oberhalb der Anlegen/
