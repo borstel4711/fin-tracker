@@ -73,6 +73,47 @@ function TrendArrow({ pct }: { pct: number }) {
   );
 }
 
+const HEATMAP_NEUTRAL = { dark: '#242736', light: '#e8eaf0' };
+const HEATMAP_NEGATIVE = { dark: '#ef4444', light: '#dc2626' };
+const HEATMAP_POSITIVE = { dark: '#22c55e', light: '#16a34a' };
+const HEATMAP_BINS = 4;
+
+function hexToRgb(hex: string): [number, number, number] {
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!match) return [0, 0, 0];
+  return [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)];
+}
+
+function lerpColor(from: string, to: string, t: number): string {
+  const [fr, fg, fb] = hexToRgb(from);
+  const [tr, tg, tb] = hexToRgb(to);
+  const channel = (a: number, b: number) => Math.round(a + (b - a) * t).toString(16).padStart(2, '0');
+  return `#${channel(fr, tr)}${channel(fg, tg)}${channel(fb, tb)}`;
+}
+
+function buildHeatmapRanges(maxAbs: number, theme: 'dark' | 'light') {
+  const neutral = HEATMAP_NEUTRAL[theme];
+  const negative = HEATMAP_NEGATIVE[theme];
+  const positive = HEATMAP_POSITIVE[theme];
+  const safeMax = maxAbs || 1;
+  const ranges: { from: number; to: number; color: string }[] = [];
+  for (let i = HEATMAP_BINS; i >= 1; i--) {
+    ranges.push({
+      from: -safeMax * (i / HEATMAP_BINS),
+      to: -safeMax * ((i - 1) / HEATMAP_BINS),
+      color: lerpColor(neutral, negative, i / HEATMAP_BINS),
+    });
+  }
+  for (let i = 1; i <= HEATMAP_BINS; i++) {
+    ranges.push({
+      from: safeMax * ((i - 1) / HEATMAP_BINS),
+      to: safeMax * (i / HEATMAP_BINS),
+      color: lerpColor(neutral, positive, i / HEATMAP_BINS),
+    });
+  }
+  return ranges;
+}
+
 export default function Categories() {
   const { theme } = useTheme();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -141,9 +182,14 @@ export default function Categories() {
         name: c.name,
         data: summary.months.map((m, i) => ({
           x: formatMonth(m),
-          y: Math.round(Math.abs(c.monthly[i] ?? 0) * 100) / 100,
+          y: Math.round((c.monthly[i] ?? 0) * 100) / 100,
         })),
       })),
+    [summary]
+  );
+
+  const heatmapMaxAbs = useMemo(
+    () => summary.categories.reduce((max, c) => Math.max(max, ...c.monthly.map((v) => Math.abs(v)), 0), 0),
     [summary]
   );
 
@@ -157,8 +203,12 @@ export default function Categories() {
     tooltip: { theme: tooltipTheme, y: { formatter: (val: number) => formatCurrency(val) } },
     dataLabels: { enabled: false },
     legend: { show: false },
-    plotOptions: { heatmap: { shadeIntensity: 0.6 } },
-    colors: ['#2563eb'],
+    plotOptions: {
+      heatmap: {
+        useFillColorAsStroke: true,
+        colorScale: { ranges: buildHeatmapRanges(heatmapMaxAbs, theme) },
+      },
+    },
   };
 
   return (
