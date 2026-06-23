@@ -143,7 +143,7 @@ export default function Balance() {
     },
   };
   const historySeries = [
-    { name: 'Eingetragen', data: enteredValues },
+    { name: 'Erfasst', data: enteredValues },
     { name: 'Berechnet', data: computedValues },
   ];
 
@@ -200,9 +200,9 @@ export default function Balance() {
             <tr>
               <th>Datum</th>
               <th>Typ</th>
-              <th className={styles.amountRight}>Eingetragen</th>
+              <th className={styles.amountRight}>Erfasst</th>
               <th className={styles.amountRight}>Berechnet</th>
-              <th className={styles.amountRight}>Diff</th>
+              <th className={styles.amountRight}>Differenz</th>
               <th></th>
             </tr>
           </thead>
