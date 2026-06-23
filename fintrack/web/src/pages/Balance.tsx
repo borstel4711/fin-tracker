@@ -30,7 +30,6 @@ export default function Balance() {
     series: [],
     checkpoints: [],
     forecastRates: { total: 0, recurring: 0 },
-    forecastRates12m: { total: 0, recurring: 0 },
   });
   const [settings, setSettings] = useState<AppSettings>({ id: 1, buffer: 0 });
   const [form, setForm] = useState(makeEmptyAnchor);

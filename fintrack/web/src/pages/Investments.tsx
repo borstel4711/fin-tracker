@@ -72,7 +72,6 @@ export default function Investments() {
     series: [],
     checkpoints: [],
     forecastRates: { total: 0, recurring: 0 },
-    forecastRates12m: { total: 0, recurring: 0 },
   });
   const [settings, setSettings] = useState<AppSettings>({ id: 1, buffer: 0 });
   const [form, setForm] = useState(emptyForm);
@@ -146,7 +145,10 @@ export default function Investments() {
     [summary, categoryModeById]
   );
 
-  const monthlyNetCashFlow = useMemo(() => balanceSeries.forecastRates12m.total, [balanceSeries]);
+  const monthlyNetCashFlow = useMemo(
+    () => monthlyRecurringIncome - monthlyRecurringExpense,
+    [monthlyRecurringIncome, monthlyRecurringExpense]
+  );
 
   const nowMonth = currentMonth();
 
@@ -188,13 +190,14 @@ export default function Investments() {
               Ø wiederkehrende Ausgaben / Monat: <strong>{formatCurrency(monthlyRecurringExpense)}</strong>
             </li>
             <li>
-              Ø Cashflow / Monat (Ø der letzten 12 Monate): <strong>{formatCurrency(monthlyNetCashFlow)}</strong>
+              Ø wiederkehrender Cashflow / Monat: <strong>{formatCurrency(monthlyNetCashFlow)}</strong>
             </li>
           </ul>
           <p className={styles.explanation}>
-            Der Cashflow wird als Durchschnitt der letzten 12 Monate berechnet (Einnahmen minus Ausgaben aus allen
-            Buchungen) — unabhängig vom Forecast auf der Übersichtsseite, der die gesamte Kontohistorie nutzt.
-            Wiederkehrende Einnahmen sind zur Information aufgeführt; sie sind im Cashflow bereits enthalten. Eine
+            Für die Prognose berücksichtigen wir ausschließlich wiederkehrende Kategorien (z. B. Gehalt, Miete,
+            Abos) als Durchschnitt der letzten 12 Monate. Einmalige Anschaffungen und nicht kategorisierte Buchungen
+            fließen bewusst nicht ein, da sie sich nicht zuverlässig in die Zukunft fortschreiben lassen — der
+            Cashflow entspricht daher genau wiederkehrenden Einnahmen minus wiederkehrenden Ausgaben. Eine
             Investition gilt als leistbar, sobald nach Abzug ihres Betrags noch genug übrig bleibt, um den Puffer zu
             halten und die wiederkehrenden Ausgaben des jeweiligen Monats zu bezahlen. Bei mehreren Investitionen
             wird zuerst die mit der höchsten Priorität (niedrigste Zahl) berechnet; ihr Betrag gilt danach als

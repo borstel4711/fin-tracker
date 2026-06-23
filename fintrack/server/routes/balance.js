@@ -60,13 +60,7 @@ router.get('/balance/series', (req, res) => {
     .prepare("SELECT * FROM balance_anchors WHERE type = 'start' ORDER BY date ASC LIMIT 1")
     .get();
   if (!start) {
-    return res.json({
-      start: null,
-      series: [],
-      checkpoints: [],
-      forecastRates: { total: 0, recurring: 0 },
-      forecastRates12m: { total: 0, recurring: 0 },
-    });
+    return res.json({ start: null, series: [], checkpoints: [], forecastRates: { total: 0, recurring: 0 } });
   }
 
   const transactions = db
@@ -124,19 +118,6 @@ router.get('/balance/series', (req, res) => {
     .filter((t) => t.category_mode === 'recurring')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Zusätzliche 12-Monats-Rate (feste letzte 12 Kalendermonate, wie
-  // categorySummary() in reports.js), damit Seiten wie Investitionen einen
-  // Cashflow-Wert nutzen können, der zur 12-Monats-Basis der
-  // wiederkehrenden Kategorien-Durchschnitte passt.
-  const now = new Date();
-  const windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-  const windowStartStr = windowStart.toISOString().slice(0, 10);
-  const recentTransactions = transactions.filter((t) => t.date >= windowStartStr);
-  const recentTotalChange = recentTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const recentRecurringChange = recentTransactions
-    .filter((t) => t.category_mode === 'recurring')
-    .reduce((sum, t) => sum + t.amount, 0);
-
   res.json({
     start,
     series,
@@ -144,10 +125,6 @@ router.get('/balance/series', (req, res) => {
     forecastRates: {
       total: totalChange / totalDays,
       recurring: recurringChange / totalDays,
-    },
-    forecastRates12m: {
-      total: recentTotalChange / 12,
-      recurring: recentRecurringChange / 12,
     },
   });
 });
