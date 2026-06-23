@@ -3,9 +3,17 @@ const db = require('../db');
 
 const router = express.Router();
 
-function monthlyTotals(from, to) {
+// Buchungen ohne Wertstellung fallen sonst aus jeder Monatsgruppierung heraus,
+// deshalb auf das Buchungsdatum zurückfallen, statt NULL durchzureichen.
+function dateColumn(field, alias = '') {
+  const p = alias ? `${alias}.` : '';
+  return field === 'value_date' ? `COALESCE(${p}value_date, ${p}date)` : `${p}date`;
+}
+
+function monthlyTotals(from, to, field) {
+  const dateCol = dateColumn(field);
   let query = `
-    SELECT substr(date, 1, 7) AS month,
+    SELECT substr(${dateCol}, 1, 7) AS month,
            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
            SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) AS expense
     FROM transactions
@@ -13,11 +21,11 @@ function monthlyTotals(from, to) {
   const params = [];
   const where = [];
   if (from) {
-    where.push('date >= ?');
+    where.push(`${dateCol} >= ?`);
     params.push(from);
   }
   if (to) {
-    where.push('date <= ?');
+    where.push(`${dateCol} <= ?`);
     params.push(to);
   }
   if (where.length) query += ' WHERE ' + where.join(' AND ');
@@ -34,10 +42,11 @@ function monthlyTotals(from, to) {
 }
 
 router.get('/reports/monthly', (req, res) => {
-  res.json(monthlyTotals(req.query.from, req.query.to));
+  res.json(monthlyTotals(req.query.from, req.query.to, req.query.field));
 });
 
-function byCategoryTotals(from, to) {
+function byCategoryTotals(from, to, field) {
+  const dateCol = dateColumn(field, 't');
   let query = `
     SELECT c.id AS category_id, c.name, c.color,
            SUM(-t.amount) AS total
@@ -47,11 +56,11 @@ function byCategoryTotals(from, to) {
   `;
   const params = [];
   if (from) {
-    query += ' AND t.date >= ?';
+    query += ` AND ${dateCol} >= ?`;
     params.push(from);
   }
   if (to) {
-    query += ' AND t.date <= ?';
+    query += ` AND ${dateCol} <= ?`;
     params.push(to);
   }
   query += ' GROUP BY t.category_id ORDER BY total DESC';
@@ -68,15 +77,16 @@ function byCategoryTotals(from, to) {
 }
 
 router.get('/reports/by-category', (req, res) => {
-  res.json(byCategoryTotals(req.query.from, req.query.to));
+  res.json(byCategoryTotals(req.query.from, req.query.to, req.query.field));
 });
 
-function categoryMonthlyTotals(type, from, to) {
+function categoryMonthlyTotals(type, from, to, field) {
+  const dateCol = dateColumn(field, 't');
   const amountExpr = type === 'income' ? 't.amount' : '-t.amount';
   const amountFilter = type === 'income' ? 't.amount > 0' : 't.amount < 0';
 
   let query = `
-    SELECT substr(t.date, 1, 7) AS month, c.id AS category_id, c.name, c.color,
+    SELECT substr(${dateCol}, 1, 7) AS month, c.id AS category_id, c.name, c.color,
            SUM(${amountExpr}) AS total
     FROM transactions t
     LEFT JOIN categories c ON c.id = t.category_id
@@ -84,11 +94,11 @@ function categoryMonthlyTotals(type, from, to) {
   `;
   const params = [];
   if (from) {
-    query += ' AND t.date >= ?';
+    query += ` AND ${dateCol} >= ?`;
     params.push(from);
   }
   if (to) {
-    query += ' AND t.date <= ?';
+    query += ` AND ${dateCol} <= ?`;
     params.push(to);
   }
   query += ' GROUP BY month, t.category_id ORDER BY month ASC';
@@ -106,11 +116,11 @@ function categoryMonthlyTotals(type, from, to) {
 }
 
 router.get('/reports/by-category-monthly', (req, res) => {
-  const { type, from, to } = req.query;
+  const { type, from, to, field } = req.query;
   if (type !== 'income' && type !== 'expense') {
     return res.status(400).json({ error: 'type must be "income" or "expense"' });
   }
-  res.json(categoryMonthlyTotals(type, from, to));
+  res.json(categoryMonthlyTotals(type, from, to, field));
 });
 
 function shiftMonth(month, delta) {
@@ -136,13 +146,14 @@ function pctChange(recentAbs, olderAbs) {
 
 function categorySummary() {
   const months = lastNMonths(12);
-  const earliestMonth = months[0];
+  const months24 = lastNMonths(24);
   const currentMonth = months[months.length - 1];
   const currentYear = currentMonth.slice(0, 4);
+  const prevYearMonth = shiftMonth(currentMonth, -12);
 
   const allTimeRows = db
     .prepare(
-      `SELECT c.id AS category_id, c.name, c.color, c.icon, SUM(t.amount) AS total
+      `SELECT c.id AS category_id, c.name, c.color, c.icon, c.mode, SUM(t.amount) AS total
        FROM categories c
        LEFT JOIN transactions t ON t.category_id = c.id
        GROUP BY c.id`
@@ -158,6 +169,15 @@ function categorySummary() {
     )
     .all(currentYear);
 
+  const prevYearMonthRows = db
+    .prepare(
+      `SELECT category_id, SUM(amount) AS total
+       FROM transactions
+       WHERE category_id IS NOT NULL AND substr(date, 1, 7) = ?
+       GROUP BY category_id`
+    )
+    .all(prevYearMonth);
+
   const monthlyRows = db
     .prepare(
       `SELECT substr(date, 1, 7) AS month, category_id, SUM(amount) AS total
@@ -165,7 +185,7 @@ function categorySummary() {
        WHERE category_id IS NOT NULL AND date >= ? AND substr(date, 1, 7) <= ?
        GROUP BY month, category_id`
     )
-    .all(`${earliestMonth}-01`, currentMonth);
+    .all(`${months24[0]}-01`, currentMonth);
 
   const monthlyByCategory = new Map();
   for (const row of monthlyRows) {
@@ -173,15 +193,29 @@ function categorySummary() {
     monthlyByCategory.get(row.category_id).set(row.month, row.total || 0);
   }
   const yearByCategory = new Map(yearRows.map((r) => [r.category_id, r.total || 0]));
+  const prevYearMonthByCategory = new Map(prevYearMonthRows.map((r) => [r.category_id, r.total || 0]));
 
-  function trendPct(monthlyMap, windowSize) {
+  function trendPct(monthlyMap, monthList, windowSize) {
+    if (windowSize < 2) return 0;
     const half = windowSize / 2;
-    const windowMonths = months.slice(months.length - windowSize);
-    const sumAbs = (monthList) => monthList.reduce((acc, m) => acc + Math.abs(monthlyMap.get(m) || 0), 0);
+    const windowMonths = monthList.slice(monthList.length - windowSize);
+    const sumAbs = (monthListSlice) => monthListSlice.reduce((acc, m) => acc + Math.abs(monthlyMap.get(m) || 0), 0);
     const olderAbs = sumAbs(windowMonths.slice(0, half));
     const recentAbs = sumAbs(windowMonths.slice(half));
     return pctChange(recentAbs, olderAbs);
   }
+
+  // Die Buchungshistorie reicht oft (noch) nicht 24 Monate zurück; dann zählt
+  // einfach das Maximum verfügbarer Monate (auf eine gerade Zahl abgerundet,
+  // damit beide Vergleichshälften gleich groß bleiben), statt fehlende
+  // Monate als 0 in den Trend einzurechnen.
+  const earliestTx = db.prepare('SELECT MIN(date) AS d FROM transactions').get();
+  const earliestDataMonth = earliestTx.d ? earliestTx.d.slice(0, 7) : currentMonth;
+  let availableMonths = 0;
+  for (let m = currentMonth; m >= earliestDataMonth && availableMonths < 24; m = shiftMonth(m, -1)) {
+    availableMonths++;
+  }
+  const trend24Window = availableMonths - (availableMonths % 2);
 
   const categories = allTimeRows.map((r) => {
     const monthlyMap = monthlyByCategory.get(r.category_id) || new Map();
@@ -193,12 +227,14 @@ function categorySummary() {
       name: r.name,
       color: r.color,
       icon: r.icon,
-      total_all_time: Math.round((r.total || 0) * 100) / 100,
+      mode: r.mode,
+      total_prev_year_month: Math.round((prevYearMonthByCategory.get(r.category_id) || 0) * 100) / 100,
       total_year: Math.round((yearByCategory.get(r.category_id) || 0) * 100) / 100,
       total_month: monthly[monthly.length - 1],
       avg_per_month: Math.round((sumLast12 / 12) * 100) / 100,
-      trend_6m_pct: trendPct(monthlyMap, 6),
-      trend_12m_pct: trendPct(monthlyMap, 12),
+      trend_6m_pct: trendPct(monthlyMap, months, 6),
+      trend_12m_pct: trendPct(monthlyMap, months, 12),
+      trend_24m_pct: trendPct(monthlyMap, months24, trend24Window),
       monthly,
     };
   });
@@ -211,13 +247,13 @@ router.get('/reports/category-summary', (req, res) => {
 });
 
 router.get('/reports/compare', (req, res) => {
-  const month = req.query.month;
+  const { month, field } = req.query;
   if (!month) return res.status(400).json({ error: 'month required (YYYY-MM)' });
 
   const previousMonth = shiftMonth(month, -1);
   const previousYear = shiftMonth(month, -12);
 
-  const totals = monthlyTotals(previousYear, month).reduce((acc, r) => {
+  const totals = monthlyTotals(previousYear, month, field).reduce((acc, r) => {
     acc[r.month] = r;
     return acc;
   }, {});

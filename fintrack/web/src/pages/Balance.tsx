@@ -89,6 +89,20 @@ export default function Balance() {
     [enteredValues]
   );
 
+  // Veränderung in % wird nur für Monatsende-Anker ausgewiesen, jeweils
+  // gegen den erfassten Saldo des vorherigen Monatsende-Ankers.
+  const monthEndChangePct = useMemo(() => {
+    const map = new Map<number, number | null>();
+    let prevMonthEnd: BalanceAnchor | null = null;
+    for (const a of anchors) {
+      if (a.type === 'month_end') {
+        map.set(a.id, prevMonthEnd && prevMonthEnd.balance !== 0 ? ((a.balance - prevMonthEnd.balance) / Math.abs(prevMonthEnd.balance)) * 100 : null);
+        prevMonthEnd = a;
+      }
+    }
+    return map;
+  }, [anchors]);
+
   const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
   const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
   const tooltipTheme = theme === 'dark' ? 'dark' : 'light';
@@ -194,7 +208,7 @@ export default function Balance() {
       </form>
       {error && <p className={styles.error}>{error}</p>}
 
-      <div className="cardFlush">
+      <div className={`cardFlush ${styles.tableWrap}`}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -203,12 +217,14 @@ export default function Balance() {
               <th className={styles.amountRight}>Erfasst</th>
               <th className={styles.amountRight}>Berechnet</th>
               <th className={styles.amountRight}>Differenz</th>
+              <th className={styles.amountRight}>Δ % Vormonatsende</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {anchors.map((a) => {
               const cp = series.checkpoints.find((c) => c.id === a.id);
+              const pct = monthEndChangePct.get(a.id) ?? null;
               return (
                 <tr key={a.id}>
                   <td>{formatDate(a.date)}</td>
@@ -220,6 +236,13 @@ export default function Balance() {
                   <td className={styles.amountRight}>{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
                   <td className={`${styles.amountRight} ${cp && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''}`}>
                     {cp ? `${cp.diff.toFixed(2)} €` : '–'}
+                  </td>
+                  <td
+                    className={`${styles.amountRight} ${
+                      pct == null ? '' : pct > 0 ? styles.pctUp : pct < 0 ? styles.pctDown : ''
+                    }`}
+                  >
+                    {pct == null ? '–' : `${pct > 0 ? '+' : ''}${pct.toFixed(1)} %`}
                   </td>
                   <td>
                     <div className={styles.actions}>

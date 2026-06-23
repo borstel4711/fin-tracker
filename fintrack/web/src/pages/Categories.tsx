@@ -26,21 +26,25 @@ const emptyForm = {
 type SortDir = 'asc' | 'desc';
 type SummarySortKey =
   | 'name'
-  | 'total_all_time'
   | 'total_year'
+  | 'total_prev_year_month'
   | 'total_month'
   | 'avg_per_month'
   | 'trend_6m_pct'
-  | 'trend_12m_pct';
+  | 'trend_12m_pct'
+  | 'trend_24m_pct';
+
+type ModeFilter = 'all' | Category['mode'];
 
 const SUMMARY_COLUMNS: { key: SummarySortKey; label: string; amountRight?: boolean }[] = [
   { key: 'name', label: 'Name' },
-  { key: 'total_all_time', label: 'Betrag insg.', amountRight: true },
   { key: 'total_year', label: 'Betrag YTD', amountRight: true },
+  { key: 'total_prev_year_month', label: 'Betrag PYM', amountRight: true },
   { key: 'total_month', label: 'Betrag MTD', amountRight: true },
   { key: 'avg_per_month', label: 'Ø Betrag/Monat', amountRight: true },
   { key: 'trend_6m_pct', label: '6M Trend', amountRight: true },
   { key: 'trend_12m_pct', label: '12M Trend', amountRight: true },
+  { key: 'trend_24m_pct', label: '24M Trend', amountRight: true },
 ];
 
 type TrendDirection = 'up' | 'down' | 'flat';
@@ -123,6 +127,7 @@ export default function Categories() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: SummarySortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const [hiddenCategories, setHiddenCategories] = useState<Set<number>>(new Set());
+  const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
 
   const load = () => api.get<Category[]>('/categories').then(setCategories).catch(() => {});
   const loadSummary = () =>
@@ -176,16 +181,21 @@ export default function Categories() {
     });
   };
 
+  const modeFilteredSummary = useMemo(
+    () => summary.categories.filter((c) => modeFilter === 'all' || c.mode === modeFilter),
+    [summary, modeFilter]
+  );
+
   const sortedSummary = useMemo(() => {
     const dir = sort.dir === 'asc' ? 1 : -1;
-    return [...summary.categories].sort((a, b) => {
+    return [...modeFilteredSummary].sort((a, b) => {
       const av = a[sort.key];
       const bv = b[sort.key];
       if (av < bv) return -dir;
       if (av > bv) return dir;
       return 0;
     });
-  }, [summary, sort]);
+  }, [modeFilteredSummary, sort]);
 
   const visibleSummaryCategories = useMemo(
     () => summary.categories.filter((c) => !hiddenCategories.has(c.category_id)),
@@ -233,6 +243,17 @@ export default function Categories() {
 
       <section>
         <h3 className={styles.sectionTitle}>Übersicht</h3>
+        <div className={styles.filterRow}>
+          <select
+            className="input inputSmall"
+            value={modeFilter}
+            onChange={(e) => setModeFilter(e.target.value as ModeFilter)}
+          >
+            <option value="all">Einmalig &amp; wiederkehrend</option>
+            <option value="recurring">Nur wiederkehrend</option>
+            <option value="one_time">Nur einmalig</option>
+          </select>
+        </div>
         <div className={`cardFlush ${styles.tableWrap}`}>
           <table className={styles.table}>
             <thead>
@@ -258,9 +279,9 @@ export default function Categories() {
                   <td className={styles.symbolCol}>
                     <MdiIcon name={row.icon} color={row.color} />
                   </td>
-                  <td>{row.name}</td>
-                  <td className={styles.amountRight}>{formatCurrency(row.total_all_time)}</td>
+                  <td className={row.mode === 'recurring' ? styles.recurringName : undefined}>{row.name}</td>
                   <td className={styles.amountRight}>{formatCurrency(row.total_year)}</td>
+                  <td className={styles.amountRight}>{formatCurrency(row.total_prev_year_month)}</td>
                   <td className={styles.amountRight}>{formatCurrency(row.total_month)}</td>
                   <td className={styles.amountRight}>{formatCurrency(row.avg_per_month)}</td>
                   <td className={styles.amountRight}>
@@ -268,6 +289,9 @@ export default function Categories() {
                   </td>
                   <td className={styles.amountRight}>
                     <TrendArrow pct={row.trend_12m_pct} />
+                  </td>
+                  <td className={styles.amountRight}>
+                    <TrendArrow pct={row.trend_24m_pct} />
                   </td>
                 </tr>
               ))}

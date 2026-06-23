@@ -30,6 +30,8 @@ export default function Transactions() {
   const to = searchParams.get('to') ?? '';
   const category = searchParams.get('category');
   const uncategorized = searchParams.get('uncategorized') === 'true';
+  const q = searchParams.get('q') ?? '';
+  const [qInput, setQInput] = useState(q);
 
   const updateParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
@@ -46,6 +48,7 @@ export default function Transactions() {
     if (to) params.set('to', to);
     if (uncategorized) params.set('uncategorized', 'true');
     else if (category) params.set('category', category);
+    if (q) params.set('q', q);
     return api
       .get<Transaction[]>(`/transactions?${params.toString()}`)
       .then(setTransactions)
@@ -59,7 +62,13 @@ export default function Transactions() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, to, category, uncategorized]);
+  }, [from, to, category, uncategorized, q]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => updateParams({ q: qInput || null }), 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qInput]);
 
   const updateCategory = async (id: number, categoryId: string) => {
     await api.patch(`/transactions/${id}`, { category_id: categoryId ? Number(categoryId) : null });
@@ -112,6 +121,14 @@ export default function Transactions() {
         <DateRangeFilter
           value={{ from, to }}
           onChange={(range) => updateParams({ from: range.from || null, to: range.to || null })}
+        />
+
+        <input
+          type="text"
+          className="input"
+          placeholder="Suche nach Empfänger oder Zweck…"
+          value={qInput}
+          onChange={(e) => setQInput(e.target.value)}
         />
 
         <div className={styles.filterRow}>

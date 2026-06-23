@@ -36,8 +36,13 @@
   color: var(--red);
 }
 
+.tableWrap {
+  overflow-x: auto;
+}
+
 .table {
   width: 100%;
+  min-width: 760px;
   font-size: 13px;
   border-collapse: collapse;
 }
@@ -58,11 +63,20 @@
 
 .amountRight {
   text-align: right;
+  white-space: nowrap;
 }
 
 .diffBad {
   color: var(--red);
   font-weight: 600;
+}
+
+.pctUp {
+  color: var(--green);
+}
+
+.pctDown {
+  color: var(--red);
 }
 
 .subLabel {

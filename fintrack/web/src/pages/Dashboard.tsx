@@ -84,12 +84,14 @@ export default function Dashboard() {
   const [compare, setCompare] = useState<CompareResponse | null>(null);
   const [uncategorizedCount, setUncategorizedCount] = useState(0);
   const [range, setRange] = useState<DateRange>({ from: '', to: '' });
+  const [dateField, setDateField] = useState<'date' | 'value_date'>('date');
   const month = currentMonth();
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (range.from) params.set('from', range.from);
     if (range.to) params.set('to', range.to);
+    if (dateField !== 'date') params.set('field', dateField);
     const qs = params.toString();
     api.get<MonthlyTotal[]>(`/reports/monthly?${qs}`).then(setMonthly).catch(() => {});
     api
@@ -101,20 +103,22 @@ export default function Dashboard() {
       .then(setIncomeMonthly)
       .catch(() => {});
     api.get<CategoryTotal[]>(`/reports/by-category?${qs}`).then(setByCategory).catch(() => {});
-  }, [range]);
+  }, [range, dateField]);
 
   useEffect(() => {
     api.get<CategoryTotal[]>('/reports/by-category').then(setByCategoryAllTime).catch(() => {});
   }, []);
 
   useEffect(() => {
+    const compareParams = new URLSearchParams({ month });
+    if (dateField !== 'date') compareParams.set('field', dateField);
     api.get<BalanceSeriesResponse>('/balance/series').then(setBalanceSeries).catch(() => {});
-    api.get<CompareResponse>(`/reports/compare?month=${month}`).then(setCompare).catch(() => {});
+    api.get<CompareResponse>(`/reports/compare?${compareParams.toString()}`).then(setCompare).catch(() => {});
     api
       .get<Transaction[]>('/transactions?uncategorized=true')
       .then((rows) => setUncategorizedCount(rows.length))
       .catch(() => {});
-  }, [month]);
+  }, [month, dateField]);
 
   // X-Achse auf Wochenebene resampelt (alle 7 Tage), plus exakte
   // Checkpoint-Termine, damit deren Marker nicht ins Raster fallen.
@@ -295,6 +299,22 @@ export default function Dashboard() {
     <div className={styles.page}>
       <div className={`card ${styles.filterPane}`}>
         <DateRangeFilter value={range} onChange={setRange} />
+        <div className={styles.filterRow}>
+          <button
+            type="button"
+            className={`${styles.pill} ${dateField === 'date' ? styles.pillActive : ''}`}
+            onClick={() => setDateField('date')}
+          >
+            Buchungsdatum
+          </button>
+          <button
+            type="button"
+            className={`${styles.pill} ${dateField === 'value_date' ? styles.pillActive : ''}`}
+            onClick={() => setDateField('value_date')}
+          >
+            Wertstellungsdatum
+          </button>
+        </div>
       </div>
 
       <section>

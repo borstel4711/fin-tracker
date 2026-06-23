@@ -81,6 +81,7 @@
 
 .table {
   width: 100%;
+  min-width: 920px;
   font-size: 13px;
   border-collapse: collapse;
 }
@@ -118,11 +119,16 @@
 
 .amountRight {
   text-align: right;
+  white-space: nowrap;
 }
 
 .symbolCol {
   width: 32px;
   text-align: center;
+}
+
+.recurringName {
+  font-weight: 600;
 }
 
 .trendArrow {

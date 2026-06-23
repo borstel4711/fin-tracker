@@ -5,7 +5,7 @@ const { learn } = require('../rules/categorize');
 const router = express.Router();
 
 router.get('/transactions', (req, res) => {
-  const { from, to, category, uncategorized } = req.query;
+  const { from, to, category, uncategorized, q } = req.query;
   const where = [];
   const params = [];
   if (from) {
@@ -21,6 +21,11 @@ router.get('/transactions', (req, res) => {
   } else if (category) {
     where.push('category_id = ?');
     params.push(Number(category));
+  }
+  if (q) {
+    where.push('(counterparty LIKE ? OR purpose LIKE ?)');
+    const term = `%${q}%`;
+    params.push(term, term);
   }
 
   let query = 'SELECT * FROM transactions';
