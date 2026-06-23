@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.17
+
+- fixed bugs
+
 ## 0.1.16
 
 - added investments
