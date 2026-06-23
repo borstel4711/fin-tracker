@@ -2,6 +2,14 @@
 
 ## 0.1.14
 
+- Saldo-Seite umbenannt zu "Salden" (vorher "Saldo-Anker"); die Typ-Spalte
+  sowie das Typ-Dropdown im Formular zeigen jetzt sprechende Labels
+  ("Startsaldo"/"Monatsende"/"Stichtag") statt der internen Werte
+  start/month_end/checkpoint.
+- Saldo: neues Liniendiagramm "Saldenverlauf" unterhalb der Anker-Tabelle,
+  analog zum Kontostandsverlauf im Dashboard. Zeigt den eingetragenen und
+  den berechneten Saldo je Anker als Linien mit Punktmarkern, X-Achse auf
+  Monatsbasis.
 - Saldo: Die Diff-Spalte auf der Saldo-Seite (sowie der zugrunde liegende
   Warnhinweis im Dashboard) vergleicht den eingetragenen Saldo eines
   Stützpunkts jetzt gegen den vorherigen Anker plus die Buchungen seither,

@@ -10,6 +10,17 @@
   color: var(--text);
 }
 
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.chartCard {
+  height: 288px;
+}
+
 .form {
   display: flex;
   flex-wrap: wrap;
