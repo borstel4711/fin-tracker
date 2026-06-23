@@ -1,7 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import Chart from 'react-apexcharts';
+import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
-import type { Category } from '../types';
+import { useTheme } from '../ThemeContext';
+import type { Category, CategorySummaryResponse } from '../types';
 import MdiIcon from '../components/MdiIcon';
+import { formatCurrency } from '../utils/currency';
+import { formatMonth } from '../utils/date';
 import styles from './Categories.module.css';
 
 const MODES: Category['mode'][] = ['recurring', 'one_time'];
@@ -17,14 +22,72 @@ const emptyForm = {
   mode: 'recurring' as Category['mode'],
 };
 
+type SortDir = 'asc' | 'desc';
+type SummarySortKey =
+  | 'name'
+  | 'total_all_time'
+  | 'total_year'
+  | 'total_month'
+  | 'avg_per_month'
+  | 'trend_6m_pct'
+  | 'trend_12m_pct';
+
+const SUMMARY_COLUMNS: { key: SummarySortKey; label: string; amountRight?: boolean }[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'total_all_time', label: 'Betrag insgesamt', amountRight: true },
+  { key: 'total_year', label: 'Betrag im akt. Jahr', amountRight: true },
+  { key: 'total_month', label: 'Betrag im akt. Monat', amountRight: true },
+  { key: 'avg_per_month', label: 'Ø Betrag/Monat', amountRight: true },
+  { key: 'trend_6m_pct', label: '6M Trend', amountRight: true },
+  { key: 'trend_12m_pct', label: '12M Trend', amountRight: true },
+];
+
+type TrendDirection = 'up' | 'down' | 'flat';
+
+function trendDirection(pct: number): TrendDirection {
+  if (pct > 5) return 'up';
+  if (pct < -5) return 'down';
+  return 'flat';
+}
+
+const TREND_ICON: Record<TrendDirection, string> = {
+  up: 'trending-up',
+  down: 'trending-down',
+  flat: 'trending-neutral',
+};
+
+const TREND_VARIANT: Record<TrendDirection, 'accent' | 'danger' | 'muted'> = {
+  up: 'danger',
+  down: 'accent',
+  flat: 'muted',
+};
+
+function TrendArrow({ pct }: { pct: number }) {
+  const direction = trendDirection(pct);
+  return (
+    <span className={styles.trendArrow}>
+      <MdiIcon name={TREND_ICON[direction]} variant={TREND_VARIANT[direction]} size={16} />
+      {pct > 0 ? '+' : ''}
+      {pct.toFixed(1)} %
+    </span>
+  );
+}
+
 export default function Categories() {
+  const { theme } = useTheme();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [summary, setSummary] = useState<CategorySummaryResponse>({ months: [], categories: [] });
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [sort, setSort] = useState<{ key: SummarySortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
 
   const load = () => api.get<Category[]>('/categories').then(setCategories).catch(() => {});
+  const loadSummary = () =>
+    api.get<CategorySummaryResponse>('/reports/category-summary').then(setSummary).catch(() => {});
+
   useEffect(() => {
     load();
+    loadSummary();
   }, []);
 
   const submit = async (e: FormEvent) => {
@@ -37,6 +100,7 @@ export default function Categories() {
     }
     cancelEdit();
     load();
+    loadSummary();
   };
 
   const startEdit = (c: Category) => {
@@ -53,11 +117,106 @@ export default function Categories() {
     await api.delete(`/categories/${id}`);
     if (editingId === id) cancelEdit();
     load();
+    loadSummary();
+  };
+
+  const toggleSort = (key: SummarySortKey) => {
+    setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  };
+
+  const sortedSummary = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...summary.categories].sort((a, b) => {
+      const av = a[sort.key];
+      const bv = b[sort.key];
+      if (av < bv) return -dir;
+      if (av > bv) return dir;
+      return 0;
+    });
+  }, [summary, sort]);
+
+  const heatmapSeries = useMemo(
+    () =>
+      summary.categories.map((c) => ({
+        name: c.name,
+        data: summary.months.map((m, i) => ({
+          x: formatMonth(m),
+          y: Math.round(Math.abs(c.monthly[i] ?? 0) * 100) / 100,
+        })),
+      })),
+    [summary]
+  );
+
+  const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
+  const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
+  const tooltipTheme = theme === 'dark' ? 'dark' : 'light';
+
+  const heatmapOptions: ApexOptions = {
+    chart: { foreColor, toolbar: { show: false }, background: 'transparent' },
+    grid: { borderColor: gridColor },
+    tooltip: { theme: tooltipTheme, y: { formatter: (val: number) => formatCurrency(val) } },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    plotOptions: { heatmap: { shadeIntensity: 0.6 } },
+    colors: ['#2563eb'],
   };
 
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Kategorien</h2>
+
+      <section>
+        <h3 className={styles.sectionTitle}>Übersicht</h3>
+        <div className={`cardFlush ${styles.tableWrap}`}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.symbolCol}>Symbol</th>
+                {SUMMARY_COLUMNS.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`${styles.sortable} ${col.amountRight ? styles.amountRight : ''}`}
+                    onClick={() => toggleSort(col.key)}
+                  >
+                    {col.label}
+                    <span className={styles.sortIndicator}>
+                      {sort.key === col.key ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedSummary.map((row) => (
+                <tr key={row.category_id}>
+                  <td className={styles.symbolCol}>
+                    <MdiIcon name={row.icon} color={row.color} />
+                  </td>
+                  <td>{row.name}</td>
+                  <td className={styles.amountRight}>{formatCurrency(row.total_all_time)}</td>
+                  <td className={styles.amountRight}>{formatCurrency(row.total_year)}</td>
+                  <td className={styles.amountRight}>{formatCurrency(row.total_month)}</td>
+                  <td className={styles.amountRight}>{formatCurrency(row.avg_per_month)}</td>
+                  <td className={styles.amountRight}>
+                    <TrendArrow pct={row.trend_6m_pct} />
+                  </td>
+                  <td className={styles.amountRight}>
+                    <TrendArrow pct={row.trend_12m_pct} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h3 className={styles.sectionTitle}>Kategorie × Monat (letzte 12 Monate)</h3>
+        <div className={`card ${styles.heatmapCard}`}>
+          <Chart options={heatmapOptions} series={heatmapSeries} type="heatmap" height="100%" />
+        </div>
+      </section>
+
       <form onSubmit={submit} className={`card ${styles.form}`}>
         <input
           className="input"

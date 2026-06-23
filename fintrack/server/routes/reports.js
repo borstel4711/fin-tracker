@@ -119,6 +119,97 @@ function shiftMonth(month, delta) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function lastNMonths(n) {
+  const now = new Date();
+  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const months = [];
+  for (let i = n - 1; i >= 0; i--) {
+    months.push(shiftMonth(current, -i));
+  }
+  return months;
+}
+
+function pctChange(recentAbs, olderAbs) {
+  if (olderAbs === 0) return recentAbs === 0 ? 0 : 100;
+  return Math.round(((recentAbs - olderAbs) / olderAbs) * 1000) / 10;
+}
+
+function categorySummary() {
+  const months = lastNMonths(12);
+  const earliestMonth = months[0];
+  const currentMonth = months[months.length - 1];
+  const currentYear = currentMonth.slice(0, 4);
+
+  const allTimeRows = db
+    .prepare(
+      `SELECT c.id AS category_id, c.name, c.color, c.icon, SUM(t.amount) AS total
+       FROM categories c
+       LEFT JOIN transactions t ON t.category_id = c.id
+       GROUP BY c.id`
+    )
+    .all();
+
+  const yearRows = db
+    .prepare(
+      `SELECT category_id, SUM(amount) AS total
+       FROM transactions
+       WHERE category_id IS NOT NULL AND substr(date, 1, 4) = ?
+       GROUP BY category_id`
+    )
+    .all(currentYear);
+
+  const monthlyRows = db
+    .prepare(
+      `SELECT substr(date, 1, 7) AS month, category_id, SUM(amount) AS total
+       FROM transactions
+       WHERE category_id IS NOT NULL AND date >= ? AND substr(date, 1, 7) <= ?
+       GROUP BY month, category_id`
+    )
+    .all(`${earliestMonth}-01`, currentMonth);
+
+  const monthlyByCategory = new Map();
+  for (const row of monthlyRows) {
+    if (!monthlyByCategory.has(row.category_id)) monthlyByCategory.set(row.category_id, new Map());
+    monthlyByCategory.get(row.category_id).set(row.month, row.total || 0);
+  }
+  const yearByCategory = new Map(yearRows.map((r) => [r.category_id, r.total || 0]));
+
+  function trendPct(monthlyMap, windowSize) {
+    const half = windowSize / 2;
+    const windowMonths = months.slice(months.length - windowSize);
+    const sumAbs = (monthList) => monthList.reduce((acc, m) => acc + Math.abs(monthlyMap.get(m) || 0), 0);
+    const olderAbs = sumAbs(windowMonths.slice(0, half));
+    const recentAbs = sumAbs(windowMonths.slice(half));
+    return pctChange(recentAbs, olderAbs);
+  }
+
+  const categories = allTimeRows.map((r) => {
+    const monthlyMap = monthlyByCategory.get(r.category_id) || new Map();
+    const monthly = months.map((m) => Math.round((monthlyMap.get(m) || 0) * 100) / 100);
+    const sumLast12 = monthly.reduce((acc, v) => acc + v, 0);
+
+    return {
+      category_id: r.category_id,
+      name: r.name,
+      color: r.color,
+      icon: r.icon,
+      total_all_time: Math.round((r.total || 0) * 100) / 100,
+      total_year: Math.round((yearByCategory.get(r.category_id) || 0) * 100) / 100,
+      total_month: monthly[monthly.length - 1],
+      avg_per_month: Math.round((sumLast12 / 12) * 100) / 100,
+      trend_6m_pct: trendPct(monthlyMap, 6),
+      trend_12m_pct: trendPct(monthlyMap, 12),
+      monthly,
+    };
+  });
+
+  return { months, categories };
+}
+
+router.get('/reports/category-summary', (req, res) => {
+  res.json(categorySummary());
+});
+
 router.get('/reports/compare', (req, res) => {
   const month = req.query.month;
   if (!month) return res.status(400).json({ error: 'month required (YYYY-MM)' });

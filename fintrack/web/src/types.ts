@@ -106,3 +106,22 @@ export interface ImportResult {
   skipped: number;
   value_date_filled: number;
 }
+
+export interface CategorySummaryRow {
+  category_id: number;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  total_all_time: number;
+  total_year: number;
+  total_month: number;
+  avg_per_month: number;
+  trend_6m_pct: number;
+  trend_12m_pct: number;
+  monthly: number[];
+}
+
+export interface CategorySummaryResponse {
+  months: string[];
+  categories: CategorySummaryRow[];
+}

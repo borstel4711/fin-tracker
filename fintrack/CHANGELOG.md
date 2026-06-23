@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.12
+
+- Kategorien: neue sortierbare Übersichtstabelle oberhalb der Anlegen/
+  Bearbeiten-Kachel mit Symbol, Name, Betrag insgesamt, Betrag im aktuellen
+  Jahr, Betrag im aktuellen Monat, Ø Betrag/Monat (letzte 12 Monate) sowie
+  6M-/12M-Trend als farbige mdi-Pfeile (Vergleich der jeweiligen
+  Fenster-Hälfte, ±5 % Schwelle für "gleichbleibend").
+- Kategorien: neue Heatmap "Kategorie × Monat" für die letzten 12 Monate
+  (absolute Beträge, alle Kategorien) unterhalb der Übersichtstabelle.
+- Neuer Endpunkt `GET /api/reports/category-summary` liefert Summen, Trends
+  und das Monatsraster pro Kategorie für die neue Übersicht.
+
 ## 0.1.11
 
 - Buchungen-Tabelle lässt sich jetzt per Klick auf eine Spaltenüberschrift sortieren (auf-/absteigend, mit Pfeil-Indikator).

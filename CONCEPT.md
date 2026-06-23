@@ -204,7 +204,9 @@ GET  /api/balance/series?from&to    # berechneter Verlauf + Checkpoint-Diffs
 # Auswertungen
 GET  /api/reports/monthly?from&to
 GET  /api/reports/by-category?from&to
+GET  /api/reports/by-category-monthly?type&from&to
 GET  /api/reports/compare?month
+GET  /api/reports/category-summary   # Summen/Trends/Monatsraster je Kategorie
 ```
 
 ---

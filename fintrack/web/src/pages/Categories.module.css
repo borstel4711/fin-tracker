@@ -67,3 +67,72 @@
   align-items: center;
   gap: 12px;
 }
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: var(--surface2);
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 8px;
+}
+
+.table tbody tr {
+  border-top: 1px solid var(--border);
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable:hover {
+  color: var(--text);
+}
+
+.sortIndicator {
+  display: inline-block;
+  width: 12px;
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.amountRight {
+  text-align: right;
+}
+
+.symbolCol {
+  width: 32px;
+  text-align: center;
+}
+
+.trendArrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.heatmapCard {
+  height: 360px;
+}
