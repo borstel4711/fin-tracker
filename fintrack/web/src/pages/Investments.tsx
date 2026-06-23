@@ -8,7 +8,6 @@ import styles from './Investments.module.css';
 
 const emptyForm = { name: '', amount: '', priority: '100' };
 const MAX_MONTHS_AHEAD = 600;
-const DAYS_PER_MONTH = 365.25 / 12;
 
 interface InvestmentPlanItem extends Investment {
   targetMonth: string | null;
@@ -73,6 +72,7 @@ export default function Investments() {
     series: [],
     checkpoints: [],
     forecastRates: { total: 0, recurring: 0 },
+    forecastRates12m: { total: 0, recurring: 0 },
   });
   const [settings, setSettings] = useState<AppSettings>({ id: 1, buffer: 0 });
   const [form, setForm] = useState(emptyForm);
@@ -130,6 +130,14 @@ export default function Investments() {
 
   const categoryModeById = useMemo(() => new Map(categories.map((c) => [c.id, c.mode])), [categories]);
 
+  const monthlyRecurringIncome = useMemo(
+    () =>
+      summary.categories
+        .filter((c) => categoryModeById.get(c.category_id) === 'recurring' && c.avg_per_month > 0)
+        .reduce((sum, c) => sum + c.avg_per_month, 0),
+    [summary, categoryModeById]
+  );
+
   const monthlyRecurringExpense = useMemo(
     () =>
       summary.categories
@@ -138,7 +146,7 @@ export default function Investments() {
     [summary, categoryModeById]
   );
 
-  const monthlyNetCashFlow = useMemo(() => balanceSeries.forecastRates.total * DAYS_PER_MONTH, [balanceSeries]);
+  const monthlyNetCashFlow = useMemo(() => balanceSeries.forecastRates12m.total, [balanceSeries]);
 
   const nowMonth = currentMonth();
 
@@ -174,19 +182,23 @@ export default function Investments() {
               Puffer: <strong>{formatCurrency(settings.buffer)}</strong>
             </li>
             <li>
+              Ø wiederkehrende Einnahmen / Monat: <strong>{formatCurrency(monthlyRecurringIncome)}</strong>
+            </li>
+            <li>
               Ø wiederkehrende Ausgaben / Monat: <strong>{formatCurrency(monthlyRecurringExpense)}</strong>
             </li>
             <li>
-              Ø Cashflow / Monat: <strong>{formatCurrency(monthlyNetCashFlow)}</strong>
+              Ø Cashflow / Monat (Ø der letzten 12 Monate): <strong>{formatCurrency(monthlyNetCashFlow)}</strong>
             </li>
           </ul>
           <p className={styles.explanation}>
-            Wir rechnen deinen aktuellen Kontostand monatsweise mit dem durchschnittlichen Cashflow weiter (dieselbe
-            Trendlinie wie der „Forecast Insgesamt" auf der Übersichtsseite). Eine Investition gilt als leistbar,
-            sobald nach Abzug ihres Betrags noch genug übrig bleibt, um den Puffer zu halten und die wiederkehrenden
-            Ausgaben des jeweiligen Monats zu bezahlen. Bei mehreren Investitionen wird zuerst die mit der höchsten
-            Priorität (niedrigste Zahl) berechnet; ihr Betrag gilt danach als ausgegeben, bevor die nächste
-            Investition berechnet wird.
+            Der Cashflow wird als Durchschnitt der letzten 12 Monate berechnet (Einnahmen minus Ausgaben aus allen
+            Buchungen) — unabhängig vom Forecast auf der Übersichtsseite, der die gesamte Kontohistorie nutzt.
+            Wiederkehrende Einnahmen sind zur Information aufgeführt; sie sind im Cashflow bereits enthalten. Eine
+            Investition gilt als leistbar, sobald nach Abzug ihres Betrags noch genug übrig bleibt, um den Puffer zu
+            halten und die wiederkehrenden Ausgaben des jeweiligen Monats zu bezahlen. Bei mehreren Investitionen
+            wird zuerst die mit der höchsten Priorität (niedrigste Zahl) berechnet; ihr Betrag gilt danach als
+            ausgegeben, bevor die nächste Investition berechnet wird.
           </p>
           {monthlyNetCashFlow <= 0 && (
             <p className={styles.warning}>

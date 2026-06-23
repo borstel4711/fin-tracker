@@ -78,6 +78,7 @@ export default function Dashboard() {
     series: [],
     checkpoints: [],
     forecastRates: { total: 0, recurring: 0 },
+    forecastRates12m: { total: 0, recurring: 0 },
   });
   const [byCategory, setByCategory] = useState<CategoryTotal[]>([]);
   const [byCategoryAllTime, setByCategoryAllTime] = useState<CategoryTotal[]>([]);
