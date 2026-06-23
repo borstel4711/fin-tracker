@@ -34,9 +34,9 @@ type SummarySortKey =
 
 const SUMMARY_COLUMNS: { key: SummarySortKey; label: string; amountRight?: boolean }[] = [
   { key: 'name', label: 'Name' },
-  { key: 'total_all_time', label: 'Betrag insgesamt', amountRight: true },
-  { key: 'total_year', label: 'Betrag im akt. Jahr', amountRight: true },
-  { key: 'total_month', label: 'Betrag im akt. Monat', amountRight: true },
+  { key: 'total_all_time', label: 'Betrag insg.', amountRight: true },
+  { key: 'total_year', label: 'Betrag YTD', amountRight: true },
+  { key: 'total_month', label: 'Betrag MTD', amountRight: true },
   { key: 'avg_per_month', label: 'Ø Betrag/Monat', amountRight: true },
   { key: 'trend_6m_pct', label: '6M Trend', amountRight: true },
   { key: 'trend_12m_pct', label: '12M Trend', amountRight: true },
@@ -171,7 +171,7 @@ export default function Categories() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.symbolCol}>Symbol</th>
+                <th className={styles.symbolCol}>&nbsp;</th>
                 {SUMMARY_COLUMNS.map((col) => (
                   <th
                     key={col.key}
