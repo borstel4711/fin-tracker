@@ -76,6 +76,13 @@ export interface AppSettings {
   buffer: number;
 }
 
+export interface Investment {
+  id: number;
+  name: string;
+  amount: number;
+  priority: number;
+}
+
 export interface MonthlyTotal {
   month: string;
   income: number;

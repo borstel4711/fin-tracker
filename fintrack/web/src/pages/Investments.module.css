@@ -1,0 +1,146 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.infoBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.assumptions {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: var(--text-muted);
+}
+
+.explanation {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.warning {
+  font-size: 13px;
+  color: var(--orange);
+  margin-top: 8px;
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  font-size: 13px;
+}
+
+.priorityInput {
+  width: 80px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--red);
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.list {
+  list-style: none;
+  font-size: 13px;
+}
+
+.listItem {
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.list li:first-child {
+  border-top: none;
+}
+
+.rank {
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.nameRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta {
+  color: var(--text-muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.progressTrack {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: var(--accent2);
+  transition: width 0.2s;
+}
+
+.subLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.targetMonth {
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}

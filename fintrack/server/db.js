@@ -93,6 +93,13 @@ CREATE TABLE IF NOT EXISTS settings (
   buffer REAL NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS investments (
+  id       INTEGER PRIMARY KEY,
+  name     TEXT NOT NULL,
+  amount   REAL NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 100
+);
+
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
 `);

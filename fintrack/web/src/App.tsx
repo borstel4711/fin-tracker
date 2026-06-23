@@ -6,6 +6,7 @@ import ImportPage from './pages/ImportPage';
 import Categories from './pages/Categories';
 import Rules from './pages/Rules';
 import Balance from './pages/Balance';
+import Investments from './pages/Investments';
 import Settings from './pages/Settings';
 import { useTheme } from './ThemeContext';
 import styles from './App.module.css';
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/balance', label: 'Saldo' },
   { to: '/categories', label: 'Kategorien' },
   { to: '/rules', label: 'Regeln' },
+  { to: '/investments', label: 'Investitionen' },
 ];
 
 function SunIcon() {
@@ -126,6 +128,7 @@ export default function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/rules" element={<Rules />} />
+          <Route path="/investments" element={<Investments />} />
         </Routes>
       </main>
     </HashRouter>

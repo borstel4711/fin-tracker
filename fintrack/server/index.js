@@ -42,6 +42,7 @@ app.use('/api', require('./routes/rules'));
 app.use('/api', require('./routes/balance'));
 app.use('/api', require('./routes/reports'));
 app.use('/api', require('./routes/settings'));
+app.use('/api', require('./routes/investments'));
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: `Unknown endpoint: ${req.method} ${req.originalUrl}` });
