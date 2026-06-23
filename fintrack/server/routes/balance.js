@@ -84,21 +84,24 @@ router.get('/balance/series', (req, res) => {
     .prepare("SELECT * FROM balance_anchors WHERE type IN ('checkpoint', 'month_end') ORDER BY date ASC")
     .all();
 
-  const computedAt = (date) => {
-    let total = start.balance;
-    for (const tx of transactions) {
-      if (tx.date <= date) total += tx.amount;
-      else break;
-    }
-    return total;
-  };
+  // Diff wird immer gegen den vorherigen Anker (eingetragener Saldo) ermittelt,
+  // nicht gegen die kumulierte Summe seit dem Start-Anker. So bleibt die
+  // Abweichung an jedem Stützpunkt nachvollziehbar und alte Korrekturen
+  // schlagen nicht dauerhaft auf spätere Diffs durch.
+  let prevAnchor = start;
+  const checkpoints = checkpointAnchors.map((a) => {
+    const sinceLastAnchor = transactions
+      .filter((tx) => tx.date > prevAnchor.date && tx.date <= a.date)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const computed = Math.round((prevAnchor.balance + sinceLastAnchor) * 100) / 100;
+    const diff = Math.round((a.balance - computed) * 100) / 100;
+    prevAnchor = a;
+    return { ...a, computed, diff };
+  });
 
-  const checkpoints = checkpointAnchors
-    .filter((a) => (!from || a.date >= from) && (!to || a.date <= to))
-    .map((a) => {
-      const computed = computedAt(a.date);
-      return { ...a, computed, diff: Math.round((a.balance - computed) * 100) / 100 };
-    });
+  const filteredCheckpoints = checkpoints.filter(
+    (a) => (!from || a.date >= from) && (!to || a.date <= to)
+  );
 
   // Forecast-Raten basieren bewusst auf der vollen Historie (nicht auf dem
   // from/to-Anzeigefilter), damit der Trend nicht von einer kurz gewählten
@@ -113,7 +116,7 @@ router.get('/balance/series', (req, res) => {
   res.json({
     start,
     series,
-    checkpoints,
+    checkpoints: filteredCheckpoints,
     forecastRates: {
       total: totalChange / totalDays,
       recurring: recurringChange / totalDays,

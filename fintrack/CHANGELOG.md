@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.14
+
+- Saldo: Die Diff-Spalte auf der Saldo-Seite (sowie der zugrunde liegende
+  Warnhinweis im Dashboard) vergleicht den eingetragenen Saldo eines
+  Stützpunkts jetzt gegen den vorherigen Anker plus die Buchungen seither,
+  statt gegen die kumulierte Summe seit dem Start-Anker. Vorher blieb eine
+  einmal aufgetretene Abweichung dauerhaft in allen späteren Diffs sichtbar,
+  auch wenn die nachfolgenden Buchungen exakt zum eingetragenen Saldo
+  passten – die Diff war dadurch nicht nachvollziehbar.
+
 ## 0.1.13
 
 - Kategorien: Heatmap "Kategorie × Monat" jetzt dark-mode-kompatibel.
