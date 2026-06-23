@@ -71,6 +71,11 @@ export interface BalanceSeriesResponse {
   forecastRates: { total: number; recurring: number };
 }
 
+export interface AppSettings {
+  id: number;
+  buffer: number;
+}
+
 export interface MonthlyTotal {
   month: string;
   income: number;

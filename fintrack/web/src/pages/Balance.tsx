@@ -3,13 +3,18 @@ import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
-import type { BalanceAnchor, BalanceSeriesResponse } from '../types';
-import { formatDate, formatMonth } from '../utils/date';
+import type { AppSettings, BalanceAnchor, BalanceSeriesResponse } from '../types';
+import { formatDate, formatMonth, nextMonthEnd } from '../utils/date';
 import { formatCurrency } from '../utils/currency';
 import MdiIcon from '../components/MdiIcon';
 import styles from './Balance.module.css';
 
-const emptyAnchor = { date: '', balance: '', type: 'checkpoint' as BalanceAnchor['type'], note: '' };
+const makeEmptyAnchor = () => ({
+  date: nextMonthEnd(),
+  balance: '',
+  type: 'checkpoint' as BalanceAnchor['type'],
+  note: '',
+});
 
 const TYPE_LABELS: Record<BalanceAnchor['type'], string> = {
   start: 'Startsaldo',
@@ -26,13 +31,15 @@ export default function Balance() {
     checkpoints: [],
     forecastRates: { total: 0, recurring: 0 },
   });
-  const [form, setForm] = useState(emptyAnchor);
+  const [settings, setSettings] = useState<AppSettings>({ id: 1, buffer: 0 });
+  const [form, setForm] = useState(makeEmptyAnchor);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
   const load = () => {
     api.get<BalanceAnchor[]>('/balance/anchors').then(setAnchors).catch(() => {});
     api.get<BalanceSeriesResponse>('/balance/series').then(setSeries).catch(() => {});
+    api.get<AppSettings>('/settings').then(setSettings).catch(() => {});
   };
   useEffect(() => {
     load();
@@ -63,7 +70,12 @@ export default function Balance() {
 
   const cancelEdit = () => {
     setEditingId(null);
-    setForm(emptyAnchor);
+    setForm(makeEmptyAnchor());
+  };
+
+  const remove = async (id: number) => {
+    await api.delete(`/balance/anchors/${id}`);
+    load();
   };
 
   const chartDates = useMemo(() => anchors.map((a) => a.date), [anchors]);
@@ -71,6 +83,10 @@ export default function Balance() {
   const computedValues = useMemo(
     () => anchors.map((a) => series.checkpoints.find((c) => c.id === a.id)?.computed ?? null),
     [anchors, series]
+  );
+  const average = useMemo(
+    () => (enteredValues.length ? enteredValues.reduce((sum, v) => sum + v, 0) / enteredValues.length : 0),
+    [enteredValues]
   );
 
   const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
@@ -91,6 +107,40 @@ export default function Balance() {
     markers: { size: [5, 5] },
     dataLabels: { enabled: false },
     legend: { labels: { colors: foreColor } },
+    annotations: {
+      yaxis: [
+        {
+          y: average,
+          borderColor: foreColor,
+          strokeDashArray: 4,
+          label: {
+            text: `Mittelwert: ${formatCurrency(average)}`,
+            position: 'left',
+            textAnchor: 'start',
+            borderColor: foreColor,
+            style: { color: '#fff', background: foreColor },
+          },
+        },
+        ...(settings.buffer
+          ? [
+              {
+                y: settings.buffer,
+                y2: -1e9,
+                borderColor: '#ef4444',
+                fillColor: '#ef4444',
+                opacity: 0.12,
+                label: {
+                  text: `Puffer: ${formatCurrency(settings.buffer)}`,
+                  position: 'right',
+                  textAnchor: 'end',
+                  borderColor: '#ef4444',
+                  style: { color: '#fff', background: '#ef4444' },
+                },
+              },
+            ]
+          : []),
+      ],
+    },
   };
   const historySeries = [
     { name: 'Eingetragen', data: enteredValues },
@@ -134,7 +184,7 @@ export default function Balance() {
           onChange={(e) => setForm({ ...form, note: e.target.value })}
         />
         <button type="submit" className="button buttonPrimary">
-          {editingId !== null ? 'Speichern' : 'Anker speichern'}
+          Speichern
         </button>
         {editingId !== null && (
           <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
@@ -162,16 +212,24 @@ export default function Balance() {
               return (
                 <tr key={a.id}>
                   <td>{formatDate(a.date)}</td>
-                  <td>{TYPE_LABELS[a.type]}</td>
+                  <td>
+                    {TYPE_LABELS[a.type]}
+                    {a.note && <div className={styles.subLabel}>{a.note}</div>}
+                  </td>
                   <td className={styles.amountRight}>{a.balance.toFixed(2)} €</td>
                   <td className={styles.amountRight}>{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
                   <td className={`${styles.amountRight} ${cp && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''}`}>
                     {cp ? `${cp.diff.toFixed(2)} €` : '–'}
                   </td>
                   <td>
-                    <button className="iconButton" title="Bearbeiten" aria-label="Bearbeiten" onClick={() => startEdit(a)}>
-                      <MdiIcon name="pencil-outline" variant="accent" />
-                    </button>
+                    <div className={styles.actions}>
+                      <button className="iconButton" title="Bearbeiten" aria-label="Bearbeiten" onClick={() => startEdit(a)}>
+                        <MdiIcon name="pencil-outline" variant="accent" />
+                      </button>
+                      <button className="iconButton" title="Löschen" aria-label="Löschen" onClick={() => remove(a.id)}>
+                        <MdiIcon name="delete-outline" variant="danger" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

@@ -49,6 +49,11 @@ router.patch('/balance/anchors/:id', (req, res) => {
   res.json(merged);
 });
 
+router.delete('/balance/anchors/:id', (req, res) => {
+  db.prepare('DELETE FROM balance_anchors WHERE id = ?').run(req.params.id);
+  res.status(204).end();
+});
+
 router.get('/balance/series', (req, res) => {
   const { from, to } = req.query;
   const start = db

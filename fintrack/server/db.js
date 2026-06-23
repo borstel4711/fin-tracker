@@ -88,6 +88,11 @@ CREATE TABLE IF NOT EXISTS balance_anchors (
   note    TEXT
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+  id     INTEGER PRIMARY KEY CHECK (id = 1),
+  buffer REAL NOT NULL DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
 `);
@@ -152,5 +157,7 @@ seedImportProfile({
   col_purpose: 'Verwendungszweck',
   col_balance: null,
 });
+
+db.prepare('INSERT INTO settings (id, buffer) SELECT 1, 0 WHERE NOT EXISTS (SELECT 1 FROM settings WHERE id = 1)').run();
 
 module.exports = db;

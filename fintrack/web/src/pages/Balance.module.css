@@ -62,3 +62,15 @@
   color: var(--red);
   font-weight: 600;
 }
+
+.subLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

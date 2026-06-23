@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.15
+
+- Neue Seite "Einstellungen" (erreichbar über ein neues Zahnrad-Symbol in der
+  Titelzeile, links vom Theme-Switch); enthält vorerst die Einstellung
+  "Puffer" für einen Mindestsaldo-Betrag.
+- Salden: beim Anlegen eines neuen Eintrags wird das Datumsfeld jetzt mit dem
+  nächsten Monatsende vorbelegt statt leer zu bleiben.
+- Salden: Button "Anker speichern" heißt jetzt einheitlich "Speichern" (wie
+  beim Bearbeiten).
+- Salden: in der Tabelle lässt sich ein Eintrag jetzt auch löschen (bisher
+  nur bearbeiten); die Notiz eines Eintrags erscheint außerdem als Sublabel
+  unterhalb des Typs.
+- Salden: im Saldenverlauf markiert eine gestrichelte Linie jetzt den
+  Mittelwert der eingetragenen Salden; liegt ein Puffer (siehe
+  Einstellungen) vor, wird der Bereich darunter zusätzlich rot eingefärbt,
+  damit eine Unterschreitung sofort auffällt.
+
 ## 0.1.14
 
 - Saldo-Seite umbenannt zu "Salden" (vorher "Saldo-Anker"); die Typ-Spalte
