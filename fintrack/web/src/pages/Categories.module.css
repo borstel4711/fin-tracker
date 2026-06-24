@@ -131,14 +131,6 @@
   font-weight: 600;
 }
 
-.trendArrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  justify-content: flex-end;
-  white-space: nowrap;
-}
-
 .heatmapCard {
   height: 360px;
 }

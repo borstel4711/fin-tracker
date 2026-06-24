@@ -3,9 +3,10 @@ import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
-import type { Category, CategorySummaryResponse } from '../types';
+import { COICOP_CODES, type Category, type CategorySummaryResponse } from '../types';
 import MdiIcon from '../components/MdiIcon';
 import CategoryBadge from '../components/CategoryBadge';
+import TrendArrow from '../components/TrendArrow';
 import { formatCurrency } from '../utils/currency';
 import { formatMonth } from '../utils/date';
 import styles from './Categories.module.css';
@@ -16,11 +17,30 @@ const MODE_LABELS: Record<Category['mode'], string> = {
   one_time: 'Einmalig',
 };
 
+// Dupliziert aus server/services/eurostat.js (COICOP_LABELS) — bei einer
+// künftigen Änderung der Eurostat-Klassifikation beide Stellen anpassen.
+const COICOP_LABELS: Record<string, string> = {
+  CP00: 'Gesamt (alle Positionen)',
+  CP01: 'Nahrungsmittel und alkoholfreie Getränke',
+  CP02: 'Alkoholische Getränke und Tabak',
+  CP03: 'Bekleidung und Schuhe',
+  CP04: 'Wohnen, Wasser, Strom, Gas und andere Brennstoffe',
+  CP05: 'Einrichtungsgegenstände und Haushaltsgeräte',
+  CP06: 'Gesundheitspflege',
+  CP07: 'Verkehr',
+  CP08: 'Kommunikation',
+  CP09: 'Freizeit und Kultur',
+  CP10: 'Bildungswesen',
+  CP11: 'Gaststätten- und Beherbergungsdienstleistungen',
+  CP12: 'Sonstige Waren und Dienstleistungen',
+};
+
 const emptyForm = {
   name: '',
   color: '#2563eb',
   icon: '',
   mode: 'recurring' as Category['mode'],
+  coicop_code: '',
 };
 
 type SortDir = 'asc' | 'desc';
@@ -46,37 +66,6 @@ const SUMMARY_COLUMNS: { key: SummarySortKey; label: string; amountRight?: boole
   { key: 'trend_12m_pct', label: '12M Trend', amountRight: true },
   { key: 'trend_24m_pct', label: '24M Trend', amountRight: true },
 ];
-
-type TrendDirection = 'up' | 'down' | 'flat';
-
-function trendDirection(pct: number): TrendDirection {
-  if (pct > 5) return 'up';
-  if (pct < -5) return 'down';
-  return 'flat';
-}
-
-const TREND_ICON: Record<TrendDirection, string> = {
-  up: 'trending-up',
-  down: 'trending-down',
-  flat: 'trending-neutral',
-};
-
-const TREND_VARIANT: Record<TrendDirection, 'accent' | 'danger' | 'muted'> = {
-  up: 'danger',
-  down: 'accent',
-  flat: 'muted',
-};
-
-function TrendArrow({ pct }: { pct: number }) {
-  const direction = trendDirection(pct);
-  return (
-    <span className={styles.trendArrow}>
-      <MdiIcon name={TREND_ICON[direction]} variant={TREND_VARIANT[direction]} size={16} />
-      {pct > 0 ? '+' : ''}
-      {pct.toFixed(1)} %
-    </span>
-  );
-}
 
 const HEATMAP_NEUTRAL = { dark: '#242736', light: '#e8eaf0' };
 const HEATMAP_NEGATIVE = { dark: '#ef4444', light: '#dc2626' };
@@ -140,7 +129,7 @@ export default function Categories() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const payload = { ...form, icon: form.icon || null };
+    const payload = { ...form, icon: form.icon || null, coicop_code: form.coicop_code || null };
     if (editingId !== null) {
       await api.patch(`/categories/${editingId}`, payload);
     } else {
@@ -153,7 +142,13 @@ export default function Categories() {
 
   const startEdit = (c: Category) => {
     setEditingId(c.id);
-    setForm({ name: c.name, color: c.color ?? '#2563eb', icon: c.icon ?? '', mode: c.mode });
+    setForm({
+      name: c.name,
+      color: c.color ?? '#2563eb',
+      icon: c.icon ?? '',
+      mode: c.mode,
+      coicop_code: c.coicop_code ?? '',
+    });
   };
 
   const cancelEdit = () => {
@@ -335,6 +330,18 @@ export default function Categories() {
           {MODES.map((m) => (
             <option key={m} value={m}>
               {MODE_LABELS[m]}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input"
+          value={form.coicop_code}
+          onChange={(e) => setForm({ ...form, coicop_code: e.target.value })}
+        >
+          <option value="">Keine Zuordnung (Inflation)</option>
+          {COICOP_CODES.map((code) => (
+            <option key={code} value={code}>
+              {COICOP_LABELS[code]}
             </option>
           ))}
         </select>

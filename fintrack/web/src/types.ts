@@ -1,3 +1,20 @@
+export const COICOP_CODES = [
+  'CP00',
+  'CP01',
+  'CP02',
+  'CP03',
+  'CP04',
+  'CP05',
+  'CP06',
+  'CP07',
+  'CP08',
+  'CP09',
+  'CP10',
+  'CP11',
+  'CP12',
+] as const;
+export type CoicopCode = (typeof COICOP_CODES)[number];
+
 export interface Category {
   id: number;
   name: string;
@@ -5,6 +22,7 @@ export interface Category {
   color: string | null;
   icon: string | null;
   mode: 'one_time' | 'recurring';
+  coicop_code: string | null;
 }
 
 export interface Rule {
@@ -109,6 +127,20 @@ export interface CompareResponse {
   month: MonthlyTotal;
   previousMonth: MonthlyTotal;
   previousYear: MonthlyTotal;
+}
+
+export interface InflationHeadlinePoint {
+  month: string;
+  personalRateYoy: number | null;
+  officialRateYoy: number | null;
+}
+
+export interface InflationBreakdownRow {
+  coicop: string;
+  label: string;
+  categoryNames: string[];
+  personalRateYoy: number | null;
+  officialRateYoy: number | null;
 }
 
 export interface ImportResult {
