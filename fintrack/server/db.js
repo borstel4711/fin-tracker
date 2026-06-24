@@ -102,6 +102,14 @@ CREATE TABLE IF NOT EXISTS investments (
 
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
+
+CREATE TABLE IF NOT EXISTS official_inflation_rates (
+  month      TEXT NOT NULL,
+  coicop     TEXT NOT NULL,
+  rate_yoy   REAL,
+  fetched_at TEXT NOT NULL,
+  PRIMARY KEY (month, coicop)
+);
 `);
 
 function addColumnIfMissing(table, column, definition) {
@@ -115,6 +123,7 @@ addColumnIfMissing('transactions', 'value_date', 'TEXT');
 addColumnIfMissing('import_profiles', 'col_value_date', 'TEXT');
 addColumnIfMissing('categories', 'icon', 'TEXT');
 addColumnIfMissing('categories', 'mode', "TEXT NOT NULL DEFAULT 'recurring'");
+addColumnIfMissing('categories', 'coicop_code', 'TEXT');
 
 function dropColumnIfExists(table, column) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all();

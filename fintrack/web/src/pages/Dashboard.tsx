@@ -3,7 +3,7 @@ import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
-import { formatDate, addDays, daysBetween } from '../utils/date';
+import { formatDate, formatMonth, addDays, daysBetween } from '../utils/date';
 import { formatCurrency } from '../utils/currency';
 import type {
   MonthlyTotal,
@@ -12,8 +12,11 @@ import type {
   CategoryMonthlyTotal,
   CompareResponse,
   Transaction,
+  InflationHeadlinePoint,
+  InflationBreakdownRow,
 } from '../types';
 import DateRangeFilter, { type DateRange } from '../components/DateRangeFilter';
+import TrendArrow from '../components/TrendArrow';
 import styles from './Dashboard.module.css';
 
 const COLORS = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#db2777'];
@@ -83,6 +86,8 @@ export default function Dashboard() {
   const [byCategoryAllTime, setByCategoryAllTime] = useState<CategoryTotal[]>([]);
   const [compare, setCompare] = useState<CompareResponse | null>(null);
   const [uncategorizedCount, setUncategorizedCount] = useState(0);
+  const [inflationHeadline, setInflationHeadline] = useState<InflationHeadlinePoint[]>([]);
+  const [inflationBreakdown, setInflationBreakdown] = useState<InflationBreakdownRow[]>([]);
   const [range, setRange] = useState<DateRange>({ from: '', to: '' });
   const [dateField, setDateField] = useState<'date' | 'value_date'>('date');
   const month = currentMonth();
@@ -107,6 +112,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.get<CategoryTotal[]>('/reports/by-category').then(setByCategoryAllTime).catch(() => {});
+  }, []);
+
+  // Eigener Effekt, unabhängig von range/dateField: eine YoY-Kennzahl braucht
+  // mind. 24 Monate Historie und soll nicht durch den Seiten-Datumsfilter
+  // eingeschränkt werden.
+  useEffect(() => {
+    api.get<InflationHeadlinePoint[]>('/inflation/headline?months=24').then(setInflationHeadline).catch(() => {});
+    api.get<InflationBreakdownRow[]>('/inflation/breakdown').then(setInflationBreakdown).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -240,6 +253,29 @@ export default function Dashboard() {
     { name: 'Forecast Baseline', type: 'line', data: extendedForecastBaselineValues },
   ];
 
+  const inflationOptions: ApexOptions = {
+    ...baseOptions,
+    chart: { ...baseOptions.chart, id: 'inflation' },
+    xaxis: {
+      categories: inflationHeadline.map((p) => p.month),
+      labels: { formatter: (v: string) => formatMonth(v) },
+    },
+    yaxis: { labels: { formatter: (val: number) => `${val.toFixed(1)} %` } },
+    tooltip: { ...baseOptions.tooltip, y: { formatter: (val: number) => `${val.toFixed(1)} %` } },
+    colors: ['#2563eb', '#94a3b8'],
+    stroke: { width: [2, 2], dashArray: [0, 6], curve: 'smooth' },
+    dataLabels: { enabled: false },
+    legend: { labels: { colors: foreColor } },
+  };
+  const inflationSeries = [
+    { name: 'Deine Inflation', type: 'line', data: inflationHeadline.map((p) => p.personalRateYoy) },
+    {
+      name: 'Offizielle Inflation (Eurostat HICP, DE)',
+      type: 'line',
+      data: inflationHeadline.map((p) => p.officialRateYoy),
+    },
+  ];
+
   const categoryDataLabels: ApexOptions['dataLabels'] = {
     enabled: true,
     formatter: (val: number) => `${val.toFixed(1)} %`,
@@ -333,6 +369,55 @@ export default function Dashboard() {
           <p className={styles.warning}>
             Achtung: Abweichung zwischen berechnetem und eingetragenem Saldo an mindestens einem Stützpunkt.
           </p>
+        )}
+      </section>
+
+      <section>
+        <h2 className={styles.sectionTitle}>Persönliche vs. offizielle Inflation</h2>
+        <div className={`card ${styles.chartCard}`}>
+          <Chart options={inflationOptions} series={inflationSeries} type="line" height="100%" />
+        </div>
+        <p className={styles.caption}>
+          Quelle: Eurostat HICP (prc_hicp_manr), Jahresrate für Deutschland. „Deine Inflation“ basiert auf deinen
+          wiederkehrenden Ausgaben (rollierende 12-Monats-Summe ggü. Vorjahr) und vermischt methodisch Preis- und
+          Mengenänderungen – sie ist daher nicht direkt mit einem amtlichen Preisindex vergleichbar. Bei weniger als
+          24 Monaten Buchungshistorie verzerrt das den Kurvenanfang.
+        </p>
+      </section>
+
+      <section>
+        <h2 className={styles.sectionTitle}>Inflation nach Kategorie</h2>
+        {inflationBreakdown.length === 0 ? (
+          <p className={styles.caption}>
+            Noch keine Kategorie einer COICOP-Gruppe zugeordnet. Das geht auf der Kategorien-Seite.
+          </p>
+        ) : (
+          <div className={`cardFlush ${styles.tableWrap}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Gruppe</th>
+                  <th>Kategorien</th>
+                  <th className={styles.amountRight}>Deine Inflation</th>
+                  <th className={styles.amountRight}>Offizielle Inflation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inflationBreakdown.map((row) => (
+                  <tr key={row.coicop}>
+                    <td>{row.label}</td>
+                    <td className={styles.meta}>{row.categoryNames.join(', ')}</td>
+                    <td className={styles.amountRight}>
+                      {row.personalRateYoy != null ? <TrendArrow pct={row.personalRateYoy} /> : '–'}
+                    </td>
+                    <td className={styles.amountRight}>
+                      {row.officialRateYoy != null ? <TrendArrow pct={row.officialRateYoy} /> : '–'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
