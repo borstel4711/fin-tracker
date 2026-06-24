@@ -381,7 +381,8 @@ export default function Dashboard() {
           Quelle: Eurostat HICP (prc_hicp_manr), Jahresrate für Deutschland. „Deine Inflation“ basiert auf deinen
           wiederkehrenden Ausgaben (rollierende 12-Monats-Summe ggü. Vorjahr) und vermischt methodisch Preis- und
           Mengenänderungen – sie ist daher nicht direkt mit einem amtlichen Preisindex vergleichbar. Bei weniger als
-          24 Monaten Buchungshistorie verzerrt das den Kurvenanfang.
+          24 Monaten Buchungshistorie fehlt der Wert für die betroffenen Monate (Lücke in der Kurve), statt eine
+          verzerrte Zahl zu zeigen.
         </p>
       </section>
 
