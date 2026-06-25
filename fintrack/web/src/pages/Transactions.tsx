@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api';
-import type { Category, Transaction } from '../types';
+import type { Category, Loan, Transaction } from '../types';
 import { formatDate } from '../utils/date';
 import CategoryBadge from '../components/CategoryBadge';
 import DateRangeFilter from '../components/DateRangeFilter';
+import MdiIcon from '../components/MdiIcon';
 import styles from './Transactions.module.css';
 
 type SortKey = 'date' | 'value_date' | 'counterparty' | 'purpose' | 'amount' | 'category';
@@ -19,12 +20,32 @@ const COLUMNS: { key: SortKey; label: string; amountRight?: boolean }[] = [
   { key: 'category', label: 'Kategorie' },
 ];
 
+const emptyTxForm = {
+  date: '',
+  value_date: '',
+  counterparty: '',
+  purpose: '',
+  amount: '',
+  direction: 'out' as 'in' | 'out',
+  category_id: '',
+};
+
+function paymentTypeLabel(type: 'rate' | 'sondertilgung' | null): string {
+  return type === 'sondertilgung' ? 'Sondertilgung' : 'Rate';
+}
+
 export default function Transactions() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'date', dir: 'desc' });
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingTxId, setEditingTxId] = useState<number | null>(null);
+  const [txForm, setTxForm] = useState(emptyTxForm);
+  const [formError, setFormError] = useState('');
 
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
@@ -57,6 +78,7 @@ export default function Transactions() {
 
   useEffect(() => {
     api.get<Category[]>('/categories').then(setCategories).catch(() => {});
+    api.get<Loan[]>('/loans').then(setLoans).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -77,6 +99,7 @@ export default function Transactions() {
   };
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
+  const loanById = new Map(loans.map((l) => [l.id, l]));
 
   const toggleSort = (key: SortKey) => {
     setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
@@ -111,11 +134,156 @@ export default function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactions, sort, categories]);
 
+  const startCreate = () => {
+    setFormError('');
+    setEditingTxId(null);
+    setTxForm(emptyTxForm);
+    setShowForm(true);
+  };
+
+  const startEditTx = (tx: Transaction) => {
+    setFormError('');
+    setEditingTxId(tx.id);
+    setTxForm({
+      date: tx.date,
+      value_date: tx.value_date ?? '',
+      counterparty: tx.counterparty ?? '',
+      purpose: tx.purpose ?? '',
+      amount: String(Math.abs(tx.amount)),
+      direction: tx.amount < 0 ? 'out' : 'in',
+      category_id: tx.category_id != null ? String(tx.category_id) : '',
+    });
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setEditingTxId(null);
+    setTxForm(emptyTxForm);
+    setFormError('');
+  };
+
+  const submitTx = async (e: FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+    const signedAmount =
+      txForm.direction === 'out' ? -Math.abs(Number(txForm.amount)) : Math.abs(Number(txForm.amount));
+    const payload = {
+      date: txForm.date,
+      value_date: txForm.value_date || null,
+      amount: signedAmount,
+      counterparty: txForm.counterparty || null,
+      purpose: txForm.purpose || null,
+      category_id: txForm.category_id ? Number(txForm.category_id) : null,
+    };
+    try {
+      if (editingTxId !== null) {
+        await api.patch(`/transactions/${editingTxId}`, payload);
+      } else {
+        await api.post('/transactions', payload);
+      }
+      cancelForm();
+      load();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const removeTx = async (id: number) => {
+    if (!window.confirm('Buchung wirklich löschen?')) return;
+    await api.delete(`/transactions/${id}`);
+    if (editingTxId === id) cancelForm();
+    load();
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.headerRow}>
         <h2 className={styles.title}>Buchungen</h2>
+        {!showForm && (
+          <button type="button" className="button buttonPrimary" onClick={startCreate}>
+            <MdiIcon name="plus" color="#ffffff" size={16} />
+            Neue Buchung
+          </button>
+        )}
       </div>
+
+      {showForm && (
+        <form onSubmit={submitTx} className={`card ${styles.txForm}`}>
+          <input
+            type="date"
+            className="input"
+            value={txForm.date}
+            onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
+            required
+          />
+          <input
+            type="date"
+            className="input"
+            placeholder="Wertstellung"
+            value={txForm.value_date}
+            onChange={(e) => setTxForm({ ...txForm, value_date: e.target.value })}
+          />
+          <input
+            className="input"
+            placeholder="Empfänger"
+            value={txForm.counterparty}
+            onChange={(e) => setTxForm({ ...txForm, counterparty: e.target.value })}
+          />
+          <input
+            className="input"
+            placeholder="Zweck"
+            value={txForm.purpose}
+            onChange={(e) => setTxForm({ ...txForm, purpose: e.target.value })}
+          />
+          <div className={styles.filterRow}>
+            <button
+              type="button"
+              className={`${styles.pill} ${txForm.direction === 'out' ? styles.pillActive : ''}`}
+              onClick={() => setTxForm({ ...txForm, direction: 'out' })}
+            >
+              Ausgabe
+            </button>
+            <button
+              type="button"
+              className={`${styles.pill} ${txForm.direction === 'in' ? styles.pillActive : ''}`}
+              onClick={() => setTxForm({ ...txForm, direction: 'in' })}
+            >
+              Einnahme
+            </button>
+          </div>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className="input"
+            placeholder="Betrag (€)"
+            value={txForm.amount}
+            onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
+            required
+          />
+          <select
+            className="input"
+            value={txForm.category_id}
+            onChange={(e) => setTxForm({ ...txForm, category_id: e.target.value })}
+          >
+            <option value="">Keine Kategorie</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="button buttonPrimary">
+            <MdiIcon name={editingTxId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
+            {editingTxId !== null ? 'Speichern' : 'Anlegen'}
+          </button>
+          <button type="button" className="button buttonSecondary" onClick={cancelForm}>
+            Abbrechen
+          </button>
+        </form>
+      )}
+      {formError && <p className={styles.error}>{formError}</p>}
 
       <div className={`card ${styles.filterPane}`}>
         <DateRangeFilter
@@ -175,6 +343,8 @@ export default function Transactions() {
                   </span>
                 </th>
               ))}
+              <th>Darlehen</th>
+              <th>Aktionen</th>
             </tr>
           </thead>
           <tbody>
@@ -214,6 +384,23 @@ export default function Transactions() {
                       />
                     </span>
                   )}
+                </td>
+                <td className={styles.muted}>
+                  {tx.loan_id != null ? (
+                    <Link className="link" to={`/loans/${tx.loan_id}`}>
+                      {loanById.get(tx.loan_id)?.name ?? 'Darlehen'} · {paymentTypeLabel(tx.loan_payment_type)}
+                    </Link>
+                  ) : (
+                    '–'
+                  )}
+                </td>
+                <td className={styles.actions}>
+                  <button className="iconButton" title="Bearbeiten" aria-label="Bearbeiten" onClick={() => startEditTx(tx)}>
+                    <MdiIcon name="pencil-outline" variant="accent" />
+                  </button>
+                  <button className="iconButton" title="Löschen" aria-label="Löschen" onClick={() => removeTx(tx.id)}>
+                    <MdiIcon name="delete-outline" variant="danger" />
+                  </button>
                 </td>
               </tr>
             ))}

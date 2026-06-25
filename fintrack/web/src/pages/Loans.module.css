@@ -1,0 +1,69 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  font-size: 13px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--red);
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: var(--surface2);
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 8px;
+}
+
+.table tbody tr {
+  border-top: 1px solid var(--border);
+}
+
+.amountRight {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.warning {
+  color: var(--orange);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}

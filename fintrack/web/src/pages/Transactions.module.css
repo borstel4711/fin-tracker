@@ -16,6 +16,19 @@
   color: var(--text);
 }
 
+.txForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  font-size: 13px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--red);
+}
+
 .filterPane {
   display: flex;
   flex-direction: column;
@@ -118,4 +131,11 @@
 
 .positive {
   color: var(--green);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
