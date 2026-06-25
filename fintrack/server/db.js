@@ -100,6 +100,17 @@ CREATE TABLE IF NOT EXISTS investments (
   priority INTEGER NOT NULL DEFAULT 100
 );
 
+CREATE TABLE IF NOT EXISTS loans (
+  id                   INTEGER PRIMARY KEY,
+  name                 TEXT NOT NULL,
+  principal_amount     REAL NOT NULL,
+  interest_rate_annual REAL NOT NULL,
+  monthly_payment      REAL NOT NULL,
+  start_date           TEXT NOT NULL,
+  match_pattern        TEXT,
+  notes                TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
 
@@ -124,6 +135,10 @@ addColumnIfMissing('import_profiles', 'col_value_date', 'TEXT');
 addColumnIfMissing('categories', 'icon', 'TEXT');
 addColumnIfMissing('categories', 'mode', "TEXT NOT NULL DEFAULT 'recurring'");
 addColumnIfMissing('categories', 'coicop_code', 'TEXT');
+addColumnIfMissing('transactions', 'loan_id', 'INTEGER REFERENCES loans(id)');
+addColumnIfMissing('transactions', 'loan_payment_type', 'TEXT');
+
+db.exec('CREATE INDEX IF NOT EXISTS idx_transactions_loan ON transactions(loan_id)');
 
 function dropColumnIfExists(table, column) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all();

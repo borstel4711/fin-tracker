@@ -66,6 +66,8 @@ export interface Transaction {
   source_file: string | null;
   import_batch: number | null;
   hash: string;
+  loan_id: number | null;
+  loan_payment_type: 'rate' | 'sondertilgung' | null;
 }
 
 export interface BalanceAnchor {
@@ -99,6 +101,63 @@ export interface Investment {
   name: string;
   amount: number;
   priority: number;
+}
+
+export interface Loan {
+  id: number;
+  name: string;
+  principal_amount: number;
+  interest_rate_annual: number;
+  monthly_payment: number;
+  start_date: string;
+  match_pattern: string | null;
+  notes: string | null;
+}
+
+export interface LoanSummary extends Loan {
+  remaining_balance: number;
+  paid_interest_total: number;
+  paid_principal_total: number;
+  paid_sondertilgung_total: number;
+  remaining_term_months: number | null;
+  payoff_date: string | null;
+}
+
+export interface LoanHistoryEntry {
+  transaction_id: number;
+  date: string;
+  amount: number;
+  payment_type: 'rate' | 'sondertilgung';
+  interest: number;
+  principal: number;
+  balance_before: number;
+  balance_after: number;
+}
+
+export interface LoanBalancePoint {
+  date: string;
+  balance: number;
+}
+
+export interface LoanSondertilgungSaving {
+  transaction_id: number;
+  date: string;
+  amount: number;
+  interestSaved: number | null;
+  monthsSaved: number | null;
+}
+
+export interface LoanDetailResponse {
+  loan: LoanSummary;
+  history: LoanHistoryEntry[];
+  projection: LoanBalancePoint[];
+  baseline: LoanBalancePoint[];
+  savings: {
+    interestSavedTotal: number | null;
+    monthsSavedTotal: number | null;
+    perSondertilgung: LoanSondertilgungSaving[];
+  };
+  suggestions: Transaction[];
 }
 
 export interface MonthlyTotal {

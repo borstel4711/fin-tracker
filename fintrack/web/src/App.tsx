@@ -7,6 +7,8 @@ import Categories from './pages/Categories';
 import Rules from './pages/Rules';
 import Balance from './pages/Balance';
 import Investments from './pages/Investments';
+import Loans from './pages/Loans';
+import LoanDetail from './pages/LoanDetail';
 import Settings from './pages/Settings';
 import { useTheme } from './ThemeContext';
 import styles from './App.module.css';
@@ -19,6 +21,7 @@ const navItems = [
   { to: '/categories', label: 'Kategorien' },
   { to: '/rules', label: 'Regeln' },
   { to: '/investments', label: 'Investitionen' },
+  { to: '/loans', label: 'Darlehen' },
 ];
 
 function SunIcon() {
@@ -129,6 +132,8 @@ export default function App() {
           <Route path="/categories" element={<Categories />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="/investments" element={<Investments />} />
+          <Route path="/loans" element={<Loans />} />
+          <Route path="/loans/:id" element={<LoanDetail />} />
         </Routes>
       </main>
     </HashRouter>
