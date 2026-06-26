@@ -227,20 +227,24 @@ export default function Balance() {
               const pct = monthEndChangePct.get(a.id) ?? null;
               return (
                 <tr key={a.id}>
-                  <td>{formatDate(a.date)}</td>
-                  <td>
+                  <td data-label="Datum">{formatDate(a.date)}</td>
+                  <td data-label="Typ">
                     {TYPE_LABELS[a.type]}
                     {a.note && <div className={styles.subLabel}>{a.note}</div>}
                   </td>
-                  <td className={styles.amountRight}>{a.balance.toFixed(2)} €</td>
-                  <td className={styles.amountRight}>{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
-                  <td className={`${styles.amountRight} ${cp && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''}`}>
+                  <td className={styles.amountRight} data-label="Erfasst">{a.balance.toFixed(2)} €</td>
+                  <td className={styles.amountRight} data-label="Berechnet">{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
+                  <td
+                    className={`${styles.amountRight} ${cp && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''}`}
+                    data-label="Differenz"
+                  >
                     {cp ? `${cp.diff.toFixed(2)} €` : '–'}
                   </td>
                   <td
                     className={`${styles.amountRight} ${
                       pct == null ? '' : pct > 0 ? styles.pctUp : pct < 0 ? styles.pctDown : ''
                     }`}
+                    data-label="Δ % Vormonatsende"
                   >
                     {pct == null ? '–' : `${pct > 0 ? '+' : ''}${pct.toFixed(1)} %`}
                   </td>

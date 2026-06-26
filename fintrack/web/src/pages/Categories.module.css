@@ -75,6 +75,16 @@
   margin-bottom: 8px;
 }
 
+.mobileSort {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobileSort select {
+  flex: 1;
+}
+
 .tableWrap {
   overflow-x: auto;
 }
@@ -129,6 +139,61 @@
 
 .recurringName {
   font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .mobileSort {
+    display: flex;
+  }
+
+  .tableWrap {
+    overflow-x: visible;
+  }
+
+  .table,
+  .table thead,
+  .table tbody,
+  .table tr,
+  .table th,
+  .table td {
+    display: block;
+  }
+
+  .table {
+    min-width: 0;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody tr {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 8px;
+    margin: 8px;
+  }
+
+  .table td {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 6px 4px;
+    text-align: right;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: left;
+  }
+
+  .table td.symbolCol {
+    display: none;
+  }
 }
 
 .heatmapCard {

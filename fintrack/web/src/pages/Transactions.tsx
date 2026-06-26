@@ -327,6 +327,28 @@ export default function Transactions() {
         </div>
       </div>
 
+      <div className={styles.mobileSort}>
+        <select
+          className="input"
+          value={sort.key}
+          onChange={(e) => setSort({ key: e.target.value as SortKey, dir: 'asc' })}
+        >
+          {COLUMNS.map((col) => (
+            <option key={col.key} value={col.key}>
+              {col.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="iconButton"
+          aria-label="Sortierrichtung umkehren"
+          onClick={() => toggleSort(sort.key)}
+        >
+          <MdiIcon name={sort.dir === 'asc' ? 'sort-ascending' : 'sort-descending'} variant="accent" />
+        </button>
+      </div>
+
       <div className={`cardFlush ${styles.tableWrap}`}>
         <table className={styles.table}>
           <thead>
@@ -350,14 +372,17 @@ export default function Transactions() {
           <tbody>
             {sortedTransactions.map((tx) => (
               <tr key={tx.id}>
-                <td className={styles.nowrap}>{formatDate(tx.date)}</td>
-                <td className={`${styles.nowrap} ${styles.muted}`}>{formatDate(tx.value_date)}</td>
-                <td>{tx.counterparty}</td>
-                <td className={styles.muted}>{tx.purpose}</td>
-                <td className={`${styles.amountRight} ${tx.amount < 0 ? styles.negative : styles.positive}`}>
+                <td className={styles.nowrap} data-label="Datum">{formatDate(tx.date)}</td>
+                <td className={`${styles.nowrap} ${styles.muted}`} data-label="Wertstellung">{formatDate(tx.value_date)}</td>
+                <td data-label="Empfänger">{tx.counterparty}</td>
+                <td className={styles.muted} data-label="Zweck">{tx.purpose}</td>
+                <td
+                  className={`${styles.amountRight} ${tx.amount < 0 ? styles.negative : styles.positive}`}
+                  data-label="Betrag"
+                >
                   {tx.amount.toFixed(2)} €
                 </td>
-                <td>
+                <td data-label="Kategorie">
                   {editingRowId === tx.id ? (
                     <select
                       className="input inputSmall"
@@ -385,7 +410,7 @@ export default function Transactions() {
                     </span>
                   )}
                 </td>
-                <td className={styles.muted}>
+                <td className={styles.muted} data-label="Darlehen">
                   {tx.loan_id != null ? (
                     <Link className="link" to={`/loans/${tx.loan_id}`}>
                       {loanById.get(tx.loan_id)?.name ?? 'Darlehen'} · {paymentTypeLabel(tx.loan_payment_type)}
@@ -394,7 +419,7 @@ export default function Transactions() {
                     '–'
                   )}
                 </td>
-                <td className={styles.actions}>
+                <td className={styles.actions} data-label="Aktionen">
                   <button className="iconButton" title="Bearbeiten" aria-label="Bearbeiten" onClick={() => startEditTx(tx)}>
                     <MdiIcon name="pencil-outline" variant="accent" />
                   </button>
