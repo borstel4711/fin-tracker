@@ -1,11 +1,9 @@
 import { useTheme } from '../ThemeContext';
+import { chartColors } from '../utils/chartTheme';
 
-const VARIANT_COLORS = {
-  dark: { accent: '#3b82f6', danger: '#ef4444', muted: '#94a3b8' },
-  light: { accent: '#2563eb', danger: '#dc2626', muted: '#6b7280' },
-};
-
-type IconVariant = keyof typeof VARIANT_COLORS.dark;
+// Semantische Icon-Farben aus derselben Theme-Token-Quelle wie die Charts
+// (chartTheme.ts), damit Icons nicht erneut eigene Hex-Werte duplizieren.
+type IconVariant = 'accent' | 'danger' | 'muted';
 
 interface MdiIconProps {
   name: string | null | undefined;
@@ -20,7 +18,9 @@ export default function MdiIcon({ name, color, variant, size = 18, className }: 
   if (!name) return null;
   const iconName = name.trim().replace(/^mdi:/, '');
   if (!iconName) return null;
-  const resolvedColor = color ?? (variant ? VARIANT_COLORS[theme][variant] : null);
+  const c = chartColors(theme);
+  const variantColors = { accent: c.accent2, danger: c.red, muted: c.muted };
+  const resolvedColor = color ?? (variant ? variantColors[variant] : null);
   const params = resolvedColor ? `?color=${encodeURIComponent(resolvedColor)}` : '';
   const src = `https://api.iconify.design/mdi:${iconName}.svg${params}`;
   return (

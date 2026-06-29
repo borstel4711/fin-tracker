@@ -4,6 +4,7 @@ import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
+import { chartTheme } from '../utils/chartTheme';
 import type { LoanBalancePoint, LoanDetailResponse, Transaction } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { formatDate } from '../utils/date';
@@ -79,14 +80,8 @@ export default function LoanDetail() {
     }
   };
 
-  const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
-  const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
-  const tooltipTheme = theme === 'dark' ? 'dark' : 'light';
-  const baseOptions: ApexOptions = {
-    chart: { foreColor, toolbar: { show: false }, background: 'transparent' },
-    grid: { borderColor: gridColor },
-    tooltip: { theme: tooltipTheme },
-  };
+  const { colors: c, baseOptions } = chartTheme(theme);
+  const foreColor = c.muted;
 
   const history = detail?.history ?? [];
   const projection = detail?.projection ?? [];
@@ -122,7 +117,7 @@ export default function LoanDetail() {
     xaxis: { categories: historyCategories1, labels: { formatter: (v: string) => formatDate(v) } },
     yaxis: { labels: { formatter: formatCurrency } },
     tooltip: { ...baseOptions.tooltip, x: { formatter: (v: number) => formatDate(historyCategories1[v - 1]) } },
-    colors: ['#dc2626', '#16a34a', '#2563eb', '#2563eb'],
+    colors: [c.red, c.green, c.accent2, c.accent2],
     stroke: { width: [0, 0, 2, 2], dashArray: [0, 0, 0, 6], curve: 'smooth' },
     plotOptions: { bar: { columnWidth: '60%' } },
     dataLabels: { enabled: false },
@@ -164,7 +159,7 @@ export default function LoanDetail() {
     xaxis: { categories: savingsCategories, labels: { formatter: (v: string) => formatDate(v) } },
     yaxis: { labels: { formatter: formatCurrency } },
     tooltip: { ...baseOptions.tooltip, x: { formatter: (v: number) => formatDate(savingsCategories[v - 1]) } },
-    colors: ['#2563eb', '#2563eb', '#94a3b8'],
+    colors: [c.accent2, c.accent2, c.muted],
     stroke: { width: [2, 2, 2], dashArray: [0, 6, 6], curve: 'smooth' },
     dataLabels: { enabled: false },
     legend: { labels: { colors: foreColor } },

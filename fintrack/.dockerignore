@@ -1,0 +1,12 @@
+# Build-Context schlank halten: lokale Abhängigkeiten/Artefakte nie in den
+# Docker-Build kopieren. Native Module (better-sqlite3) müssen im Image für die
+# Ziel-Architektur gebaut werden — lokal vorhandene node_modules wären falsch.
+**/node_modules
+web/dist
+server/data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.tsbuildinfo
+.DS_Store
