@@ -271,12 +271,12 @@ export default function LoanDetail() {
               <tbody>
                 {detail.savings.perSondertilgung.map((s) => (
                   <tr key={s.transaction_id}>
-                    <td>{formatDate(s.date)}</td>
-                    <td className={styles.amountRight}>{formatCurrency(Math.abs(s.amount))}</td>
-                    <td className={styles.amountRight}>
+                    <td data-label="Datum">{formatDate(s.date)}</td>
+                    <td className={styles.amountRight} data-label="Betrag">{formatCurrency(Math.abs(s.amount))}</td>
+                    <td className={styles.amountRight} data-label="Gesparte Zinsen">
                       {s.interestSaved != null ? formatCurrency(s.interestSaved) : '–'}
                     </td>
-                    <td className={styles.amountRight}>{s.monthsSaved != null ? s.monthsSaved : '–'}</td>
+                    <td className={styles.amountRight} data-label="Gesparte Monate">{s.monthsSaved != null ? s.monthsSaved : '–'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -305,16 +305,16 @@ export default function LoanDetail() {
               <tbody>
                 {history.map((entry) => (
                   <tr key={entry.transaction_id}>
-                    <td>{formatDate(entry.date)}</td>
-                    <td className={styles.amountRight}>{formatCurrency(entry.amount)}</td>
-                    <td className={styles.amountRight}>{formatCurrency(entry.interest)}</td>
-                    <td className={styles.amountRight}>{formatCurrency(entry.principal)}</td>
-                    <td>
+                    <td data-label="Datum">{formatDate(entry.date)}</td>
+                    <td className={styles.amountRight} data-label="Betrag">{formatCurrency(entry.amount)}</td>
+                    <td className={styles.amountRight} data-label="Zins-Anteil">{formatCurrency(entry.interest)}</td>
+                    <td className={styles.amountRight} data-label="Tilgungs-Anteil">{formatCurrency(entry.principal)}</td>
+                    <td data-label="Typ">
                       <span className={`${styles.pill} ${entry.payment_type === 'sondertilgung' ? styles.pillAccent : ''}`}>
                         {paymentTypeLabel(entry.payment_type)}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Aktionen">
                       <button
                         className="iconButton"
                         title="Entlinken"

@@ -249,6 +249,28 @@ export default function Categories() {
             <option value="one_time">Nur einmalig</option>
           </select>
         </div>
+        <div className={styles.mobileSort}>
+          <select
+            className="input"
+            value={sort.key}
+            onChange={(e) => setSort({ key: e.target.value as SummarySortKey, dir: 'asc' })}
+          >
+            {SUMMARY_COLUMNS.map((col) => (
+              <option key={col.key} value={col.key}>
+                {col.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="iconButton"
+            aria-label="Sortierrichtung umkehren"
+            onClick={() => toggleSort(sort.key)}
+          >
+            <MdiIcon name={sort.dir === 'asc' ? 'sort-ascending' : 'sort-descending'} variant="accent" />
+          </button>
+        </div>
+
         <div className={`cardFlush ${styles.tableWrap}`}>
           <table className={styles.table}>
             <thead>
@@ -274,18 +296,23 @@ export default function Categories() {
                   <td className={styles.symbolCol}>
                     <MdiIcon name={row.icon} color={row.color} />
                   </td>
-                  <td className={row.mode === 'recurring' ? styles.recurringName : undefined}>{row.name}</td>
-                  <td className={styles.amountRight}>{formatCurrency(row.total_year)}</td>
-                  <td className={styles.amountRight}>{formatCurrency(row.total_prev_year_month)}</td>
-                  <td className={styles.amountRight}>{formatCurrency(row.total_month)}</td>
-                  <td className={styles.amountRight}>{formatCurrency(row.avg_per_month)}</td>
-                  <td className={styles.amountRight}>
+                  <td
+                    className={row.mode === 'recurring' ? styles.recurringName : undefined}
+                    data-label="Name"
+                  >
+                    {row.name}
+                  </td>
+                  <td className={styles.amountRight} data-label="Betrag YTD">{formatCurrency(row.total_year)}</td>
+                  <td className={styles.amountRight} data-label="Betrag PYM">{formatCurrency(row.total_prev_year_month)}</td>
+                  <td className={styles.amountRight} data-label="Betrag MTD">{formatCurrency(row.total_month)}</td>
+                  <td className={styles.amountRight} data-label="Ø Betrag/Monat">{formatCurrency(row.avg_per_month)}</td>
+                  <td className={styles.amountRight} data-label="6M Trend">
                     <TrendArrow pct={row.trend_6m_pct} />
                   </td>
-                  <td className={styles.amountRight}>
+                  <td className={styles.amountRight} data-label="12M Trend">
                     <TrendArrow pct={row.trend_12m_pct} />
                   </td>
-                  <td className={styles.amountRight}>
+                  <td className={styles.amountRight} data-label="24M Trend">
                     <TrendArrow pct={row.trend_24m_pct} />
                   </td>
                 </tr>

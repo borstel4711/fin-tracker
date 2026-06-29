@@ -170,22 +170,22 @@ export default function Loans() {
             <tbody>
               {loans.map((loan) => (
                 <tr key={loan.id}>
-                  <td>
+                  <td data-label="Name">
                     <Link className="link" to={`/loans/${loan.id}`}>
                       {loan.name}
                     </Link>
                   </td>
-                  <td className={styles.amountRight}>{formatCurrency(loan.remaining_balance)}</td>
-                  <td className={styles.amountRight}>{loan.interest_rate_annual.toFixed(2)} %</td>
-                  <td className={styles.amountRight}>{formatCurrency(loan.monthly_payment)}</td>
-                  <td>
+                  <td className={styles.amountRight} data-label="Restschuld">{formatCurrency(loan.remaining_balance)}</td>
+                  <td className={styles.amountRight} data-label="Zins p.a.">{loan.interest_rate_annual.toFixed(2)} %</td>
+                  <td className={styles.amountRight} data-label="Rate">{formatCurrency(loan.monthly_payment)}</td>
+                  <td data-label="Restlaufzeit">
                     {loan.remaining_term_months == null ? (
                       <span className={styles.warning}>läuft nie aus</span>
                     ) : (
                       `${loan.remaining_term_months} Monate (bis ${formatDate(loan.payoff_date)})`
                     )}
                   </td>
-                  <td className={styles.actions}>
+                  <td className={styles.actions} data-label="Aktionen">
                     <button className="iconButton" title="Bearbeiten" aria-label="Bearbeiten" onClick={() => startEdit(loan)}>
                       <MdiIcon name="pencil-outline" variant="accent" />
                     </button>

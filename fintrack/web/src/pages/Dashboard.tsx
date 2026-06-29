@@ -405,12 +405,12 @@ export default function Dashboard() {
               <tbody>
                 {inflationBreakdown.map((row) => (
                   <tr key={row.coicop}>
-                    <td>{row.label}</td>
-                    <td className={styles.meta}>{row.categoryNames.join(', ')}</td>
-                    <td className={styles.amountRight}>
+                    <td data-label="Gruppe">{row.label}</td>
+                    <td className={styles.meta} data-label="Kategorien">{row.categoryNames.join(', ')}</td>
+                    <td className={styles.amountRight} data-label="Deine Inflation">
                       {row.personalRateYoy != null ? <TrendArrow pct={row.personalRateYoy} /> : '–'}
                     </td>
-                    <td className={styles.amountRight}>
+                    <td className={styles.amountRight} data-label="Offizielle Inflation">
                       {row.officialRateYoy != null ? <TrendArrow pct={row.officialRateYoy} /> : '–'}
                     </td>
                   </tr>
