@@ -4,12 +4,19 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test",
+    "lint": "eslint ."
   },
   "dependencies": {
     "better-sqlite3": "^11.3.0",
     "express": "^4.19.2",
     "multer": "^2.2.0",
     "papaparse": "^5.4.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "eslint": "^9.9.0",
+    "globals": "^15.9.0"
   }
 }

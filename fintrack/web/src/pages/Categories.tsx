@@ -3,6 +3,7 @@ import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
+import { chartTheme } from '../utils/chartTheme';
 import { COICOP_CODES, type Category, type CategorySummaryResponse } from '../types';
 import MdiIcon from '../components/MdiIcon';
 import CategoryBadge from '../components/CategoryBadge';
@@ -214,14 +215,12 @@ export default function Categories() {
     [visibleSummaryCategories]
   );
 
-  const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
-  const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
-  const tooltipTheme = theme === 'dark' ? 'dark' : 'light';
+  const { colors: c } = chartTheme(theme);
 
   const heatmapOptions: ApexOptions = {
-    chart: { foreColor, toolbar: { show: false }, background: 'transparent' },
-    grid: { borderColor: gridColor },
-    tooltip: { theme: tooltipTheme, y: { formatter: (val: number) => formatCurrency(val) } },
+    chart: { foreColor: c.muted, toolbar: { show: false }, background: 'transparent' },
+    grid: { borderColor: c.border },
+    tooltip: { theme, y: { formatter: (val: number) => formatCurrency(val) } },
     dataLabels: { enabled: false },
     legend: { show: false },
     plotOptions: {

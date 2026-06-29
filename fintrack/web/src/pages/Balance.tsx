@@ -3,6 +3,7 @@ import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
+import { chartTheme } from '../utils/chartTheme';
 import type { AppSettings, BalanceAnchor, BalanceSeriesResponse } from '../types';
 import { formatDate, formatMonth, nextMonthEnd } from '../utils/date';
 import { formatCurrency } from '../utils/currency';
@@ -103,20 +104,19 @@ export default function Balance() {
     return map;
   }, [anchors]);
 
-  const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
-  const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
-  const tooltipTheme = theme === 'dark' ? 'dark' : 'light';
+  const { colors: c } = chartTheme(theme);
+  const foreColor = c.muted;
 
   const historyOptions: ApexOptions = {
     chart: { foreColor, toolbar: { show: false }, background: 'transparent' },
-    grid: { borderColor: gridColor },
+    grid: { borderColor: c.border },
     xaxis: {
       categories: chartDates,
       labels: { formatter: (v: string) => (v ? formatMonth(v.slice(0, 7)) : '') },
     },
     yaxis: { labels: { formatter: formatCurrency } },
-    tooltip: { theme: tooltipTheme, x: { formatter: (v: number) => formatDate(chartDates[v - 1]) } },
-    colors: ['#d97706', '#2563eb'],
+    tooltip: { theme, x: { formatter: (v: number) => formatDate(chartDates[v - 1]) } },
+    colors: [c.accent, c.accent2],
     stroke: { width: [2, 2], curve: 'smooth' },
     markers: { size: [5, 5] },
     dataLabels: { enabled: false },
@@ -140,15 +140,15 @@ export default function Balance() {
               {
                 y: settings.buffer,
                 y2: -1e9,
-                borderColor: '#ef4444',
-                fillColor: '#ef4444',
+                borderColor: c.red,
+                fillColor: c.red,
                 opacity: 0.12,
                 label: {
                   text: `Puffer: ${formatCurrency(settings.buffer)}`,
                   position: 'right',
                   textAnchor: 'end',
-                  borderColor: '#ef4444',
-                  style: { color: '#fff', background: '#ef4444' },
+                  borderColor: c.red,
+                  style: { color: '#fff', background: c.red },
                 },
               },
             ]

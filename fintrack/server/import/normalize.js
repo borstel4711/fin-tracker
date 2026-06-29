@@ -20,7 +20,7 @@ function parseDate(raw, format) {
   if (format === 'YYYY-MM-DD') {
     return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
   }
-  const m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})$/);
+  const m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2,4})$/);
   if (!m) return null;
   let [, d, mo, y] = m;
   if (y.length === 2) y = `20${y}`;

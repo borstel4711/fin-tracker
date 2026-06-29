@@ -123,6 +123,11 @@ CREATE TABLE IF NOT EXISTS official_inflation_rates (
 );
 `);
 
+// Leichtgewichtige, idempotente Migrationen: jede Schema-Änderung prüft selbst,
+// ob sie schon angewandt wurde (Spalte vorhanden?), statt eine Versionsnummer zu
+// führen. Reicht bei der aktuellen Größe. Sobald die Schritte zahlreicher/
+// abhängiger werden, auf nummerierte Migrationen via `PRAGMA user_version`
+// umstellen.
 function addColumnIfMissing(table, column, definition) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all();
   if (!cols.some((c) => c.name === column)) {

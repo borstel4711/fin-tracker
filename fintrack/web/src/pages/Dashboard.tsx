@@ -5,6 +5,7 @@ import { api } from '../api';
 import { useTheme } from '../ThemeContext';
 import { formatDate, formatMonth, addDays, daysBetween } from '../utils/date';
 import { formatCurrency } from '../utils/currency';
+import { chartTheme, chartPalette } from '../utils/chartTheme';
 import type {
   MonthlyTotal,
   BalanceSeriesResponse,
@@ -19,7 +20,6 @@ import DateRangeFilter, { type DateRange } from '../components/DateRangeFilter';
 import TrendArrow from '../components/TrendArrow';
 import styles from './Dashboard.module.css';
 
-const COLORS = ['#2563eb', '#16a34a', '#dc2626', '#d97706', '#7c3aed', '#0891b2', '#db2777'];
 const FORECAST_WEEKS = 13;
 
 function currentMonth(): string {
@@ -47,7 +47,7 @@ function balanceAtDate(series: { date: string; balance: number }[], date: string
   return result;
 }
 
-function pivotCategoryMonthly(rows: CategoryMonthlyTotal[]) {
+function pivotCategoryMonthly(rows: CategoryMonthlyTotal[], palette: string[]) {
   const months = Array.from(new Set(rows.map((r) => r.month))).sort();
   const order: string[] = [];
   const meta = new Map<string, { name: string; color: string | null }>();
@@ -62,7 +62,7 @@ function pivotCategoryMonthly(rows: CategoryMonthlyTotal[]) {
     const { name, color } = meta.get(key)!;
     return {
       name,
-      color: color || COLORS[i % COLORS.length],
+      color: color || palette[i % palette.length],
       data: months.map(
         (month) => rows.find((r) => r.month === month && String(r.category_id ?? 'none') === key)?.total ?? 0
       ),
@@ -202,25 +202,19 @@ export default function Dashboard() {
     [historyDates, lastBalance, forecastBaselineValues]
   );
 
-  const expensePivot = useMemo(() => pivotCategoryMonthly(expenseMonthly), [expenseMonthly]);
-  const incomePivot = useMemo(() => pivotCategoryMonthly(incomeMonthly), [incomeMonthly]);
+  const palette = useMemo(() => chartPalette(theme), [theme]);
+  const expensePivot = useMemo(() => pivotCategoryMonthly(expenseMonthly, palette), [expenseMonthly, palette]);
+  const incomePivot = useMemo(() => pivotCategoryMonthly(incomeMonthly, palette), [incomeMonthly, palette]);
 
-  const foreColor = theme === 'dark' ? '#94a3b8' : '#6b7280';
-  const gridColor = theme === 'dark' ? '#2e3147' : '#d1d5db';
-  const tooltipTheme = theme === 'dark' ? 'dark' : 'light';
-
-  const baseOptions: ApexOptions = {
-    chart: { foreColor, toolbar: { show: false }, background: 'transparent' },
-    grid: { borderColor: gridColor },
-    tooltip: { theme: tooltipTheme },
-  };
+  const { colors: c, baseOptions } = chartTheme(theme);
+  const foreColor = c.muted;
 
   const monthlyOptions: ApexOptions = {
     ...baseOptions,
     chart: { ...baseOptions.chart, id: 'monthly' },
     xaxis: { categories: monthly.map((m) => m.month) },
     yaxis: { labels: { formatter: formatCurrency } },
-    colors: ['#16a34a', '#dc2626', '#2563eb'],
+    colors: [c.green, c.red, c.accent2],
     stroke: { width: [0, 0, 2] },
     dataLabels: { enabled: false },
     legend: { labels: { colors: foreColor } },
@@ -240,7 +234,7 @@ export default function Dashboard() {
     },
     yaxis: { labels: { formatter: formatCurrency } },
     tooltip: { ...baseOptions.tooltip, x: { formatter: (v: number) => formatDate(balanceCategories[v - 1]) } },
-    colors: ['#2563eb', '#d97706', '#2563eb', '#7c3aed'],
+    colors: [c.accent2, c.accent, c.accent2, c.violet],
     stroke: { width: [2, 0, 2, 2], dashArray: [0, 0, 6, 6], curve: 'smooth' },
     markers: { size: [0, 5, 0, 0] },
     dataLabels: { enabled: false },
@@ -262,7 +256,7 @@ export default function Dashboard() {
     },
     yaxis: { labels: { formatter: (val: number) => `${val.toFixed(1)} %` } },
     tooltip: { ...baseOptions.tooltip, y: { formatter: (val: number) => `${val.toFixed(1)} %` } },
-    colors: ['#2563eb', '#94a3b8'],
+    colors: [c.accent2, c.muted],
     stroke: { width: [2, 2], dashArray: [0, 6], curve: 'smooth' },
     dataLabels: { enabled: false },
     legend: { labels: { colors: foreColor } },
@@ -281,7 +275,7 @@ export default function Dashboard() {
     formatter: (val: number) => `${val.toFixed(1)} %`,
   };
   const categoryTooltip: ApexOptions['tooltip'] = {
-    theme: tooltipTheme,
+    theme,
     y: { formatter: (val: number) => formatCurrency(val) },
   };
 
@@ -289,7 +283,7 @@ export default function Dashboard() {
     ...baseOptions,
     chart: { ...baseOptions.chart, id: 'by-category', type: 'donut' },
     labels: byCategory.map((c) => c.name),
-    colors: byCategory.map((c, i) => c.color || COLORS[i % COLORS.length]),
+    colors: byCategory.map((cat, i) => cat.color || palette[i % palette.length]),
     legend: { labels: { colors: foreColor }, position: 'bottom' },
     dataLabels: categoryDataLabels,
     tooltip: categoryTooltip,
@@ -300,7 +294,7 @@ export default function Dashboard() {
     ...baseOptions,
     chart: { ...baseOptions.chart, id: 'by-category-all-time', type: 'donut' },
     labels: byCategoryAllTime.map((c) => c.name),
-    colors: byCategoryAllTime.map((c, i) => c.color || COLORS[i % COLORS.length]),
+    colors: byCategoryAllTime.map((cat, i) => cat.color || palette[i % palette.length]),
     legend: { labels: { colors: foreColor }, position: 'bottom' },
     dataLabels: categoryDataLabels,
     tooltip: categoryTooltip,

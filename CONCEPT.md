@@ -5,7 +5,8 @@ Buchungen heuristisch, führt einen berechneten Saldo gegen manuell gesetzte
 Stützpunkte und liefert Monats-/Kategorieauswertungen.
 
 Läuft als **Home Assistant Add-on, nur per Ingress erreichbar** (kein offener
-Port). Stack: React + Vite + Tailwind (Frontend), Node/Express + SQLite (Backend).
+Port). Stack: React + Vite + TypeScript + CSS-Modules + ApexCharts (Frontend),
+Node/Express + SQLite (better-sqlite3) (Backend).
 
 ---
 
@@ -15,7 +16,7 @@ Port). Stack: React + Vite + Tailwind (Frontend), Node/Express + SQLite (Backend
 ┌─────────────────────────────────────────────┐
 │ HA Supervisor (Ingress)                      │
 │   └─ Add-on Container                         │
-│        ├─ Express (Port 8099, intern)        │
+│        ├─ Express (interner Port, s.u.)      │
 │        │    ├─ /api/...        REST           │
 │        │    └─ serviert gebautes React-Frontend │
 │        └─ SQLite  (/data/fintrack.db)         │
@@ -26,6 +27,10 @@ Port). Stack: React + Vite + Tailwind (Frontend), Node/Express + SQLite (Backend
   statischen Vite-Build-Dateien. Das hält das Add-on schlank.
 - **Persistenz** liegt in `/data` (von HA persistent gemountet) → DB übersteht
   Add-on-Updates und Neustarts.
+- **Interner Port**: `config.yaml` setzt `ingress_port: 0`, d.h. der Supervisor
+  teilt zur Laufzeit einen freien Port zu. Das Run-Skript liest ihn über
+  `bashio::addon.ingress_port` aus und reicht ihn als `PORT` an Express. Lokal
+  (ohne HA) fällt Express auf den Default `8099` zurück.
 - **Ingress**: HA reicht Requests unter einem Pfad-Präfix durch. Frontend muss
   daher mit *relativen* Pfaden arbeiten (siehe §7).
 - **Kein Auth im Add-on nötig**: Ingress erzwingt, dass nur authentifizierte
@@ -154,10 +159,13 @@ Reihenfolge je Buchung, erste Übereinstimmung gewinnt:
 1. **Regeln** (`rules`, nach `priority`): Empfänger/Zweck contains/regex/exact.
 2. **Gelernt** (`learned_map`): normalisierter Empfänger schon mal manuell
    zugeordnet → übernehmen.
-3. **LLM-Fallback (optional, abschaltbar)**: Rest gebündelt an Claude-API,
-   JSON-Kategorien zurück. **Nur normalisierter Empfänger + Zweck**, keine
-   IBANs/Salden. Standardmäßig aus.
-4. Sonst `category_id = NULL` → landet in „Nicht kategorisiert".
+3. Sonst `category_id = NULL` → landet in „Nicht kategorisiert".
+
+> **Geplant, noch nicht implementiert**: optionaler LLM-Fallback (abschaltbar),
+> der den nicht zugeordneten Rest gebündelt an die Claude-API schickt und
+> JSON-Kategorien zurückbekommt — **nur normalisierter Empfänger + Zweck**, keine
+> IBANs/Salden, standardmäßig aus. Aktuell existiert serverseitig kein
+> Anthropic-Aufruf; die Kategorisierung endet bei Regeln + Gelerntem.
 
 Manuelle Zuordnung im UI schreibt nach `learned_map` (lernt für die Zukunft)
 und setzt `category_src = manual`.
@@ -213,7 +221,7 @@ GET  /api/reports/category-summary   # Summen/Trends/Monatsraster je Kategorie
 
 ## 7. Ingress-Besonderheiten (wichtig!)
 
-- **Relative Asset-Pfade**: in `vite.config.js` `base: './'` setzen, sonst
+- **Relative Asset-Pfade**: in `vite.config.ts` `base: './'` setzen, sonst
   lädt das Frontend hinter dem Ingress-Präfix keine Assets.
 - **API-Calls relativ**: nie `http://host:port/api`, immer `./api/...` bzw.
   über einen aus `window.location` abgeleiteten Base-Pfad.
@@ -232,19 +240,20 @@ fintrack-addon/
 ├─ fintrack/                 ← das eigentliche Add-on
 │  ├─ config.yaml            ← HA Add-on Manifest (Ingress)
 │  ├─ Dockerfile
-│  ├─ run.sh                 ← Startskript (s6/bashio)
-│  ├─ icon.png  logo.png
+│  ├─ .dockerignore
+│  ├─ rootfs/etc/services.d/fintrack/run  ← Startskript (s6/bashio)
 │  ├─ CHANGELOG.md
-│  ├─ server/                ← Express + SQLite
-│  │  ├─ index.js
-│  │  ├─ db.js
-│  │  ├─ import/ rules/ reports/
+│  ├─ server/                ← Express + SQLite (better-sqlite3)
+│  │  ├─ index.js  db.js  log.js
+│  │  ├─ routes/ import/ rules/ lib/ services/
+│  │  ├─ test/             ← node:test Unit-Tests
+│  │  ├─ eslint.config.js
 │  │  └─ package.json
-│  └─ web/                   ← React + Vite + Tailwind
+│  └─ web/                   ← React + Vite + TypeScript + CSS-Modules
 │     ├─ index.html
-│     ├─ vite.config.js
-│     ├─ tailwind.config.js
-│     └─ src/
+│     ├─ vite.config.ts
+│     ├─ eslint.config.js
+│     └─ src/  (pages/ components/ utils/)
 └─ repository.yaml           ← macht das Repo als HA-Add-on-Quelle nutzbar
 ```
 
