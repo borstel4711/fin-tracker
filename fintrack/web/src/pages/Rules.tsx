@@ -19,6 +19,7 @@ export default function Rules() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState(emptyRule);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
 
   const load = () => api.get<Rule[]>('/rules').then(setRules).catch(() => {});
@@ -30,18 +31,37 @@ export default function Rules() {
   const groupedCategories = useMemo(() => groupCategoriesByParent(categories), [categories]);
 
   const startCreate = () => {
+    setEditingId(null);
     setForm(emptyRule);
     setShowForm(true);
   };
 
+  const startEdit = (r: Rule) => {
+    setEditingId(r.id);
+    setForm({
+      match_field: r.match_field,
+      match_type: r.match_type,
+      pattern: r.pattern,
+      category_id: String(r.category_id),
+      priority: r.priority,
+    });
+    setShowForm(true);
+  };
+
   const cancelForm = () => {
+    setEditingId(null);
     setForm(emptyRule);
     setShowForm(false);
   };
 
-  const create = async (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    await api.post('/rules', { ...form, category_id: Number(form.category_id), priority: Number(form.priority) });
+    const payload = { ...form, category_id: Number(form.category_id), priority: Number(form.priority) };
+    if (editingId !== null) {
+      await api.patch(`/rules/${editingId}`, payload);
+    } else {
+      await api.post('/rules', payload);
+    }
     cancelForm();
     load();
   };
@@ -73,8 +93,8 @@ export default function Rules() {
         </div>
       </div>
 
-      <Dialog open={showForm} onClose={cancelForm} title="Regel hinzufügen">
-        <form onSubmit={create} className={styles.form}>
+      <Dialog open={showForm} onClose={cancelForm} title={editingId !== null ? 'Regel bearbeiten' : 'Regel hinzufügen'}>
+        <form onSubmit={submit} className={styles.form}>
           <FormField label="Feld">
             <select
               value={form.match_field}
@@ -130,8 +150,8 @@ export default function Rules() {
           </FormField>
           <div className={styles.formActions}>
             <button type="submit" className="button buttonPrimary">
-              <MdiIcon name="plus" color="#ffffff" size={16} />
-              Regel hinzufügen
+              <MdiIcon name={editingId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
+              {editingId !== null ? 'Speichern' : 'Regel hinzufügen'}
             </button>
             <button type="button" className="button buttonSecondary" onClick={cancelForm}>
               Abbrechen
@@ -146,9 +166,14 @@ export default function Rules() {
             <span>
               [{r.priority}] {r.match_field} {r.match_type} „{r.pattern}" → Kategorie #{r.category_id}
             </span>
-            <button className="iconButton" title="Löschen" aria-label="Löschen" onClick={() => remove(r.id)}>
-              <MdiIcon name="delete-outline" variant="danger" />
-            </button>
+            <span className={styles.actions}>
+              <button className="iconButton" title="Bearbeiten" aria-label="Bearbeiten" onClick={() => startEdit(r)}>
+                <MdiIcon name="pencil-outline" variant="accent" />
+              </button>
+              <button className="iconButton" title="Löschen" aria-label="Löschen" onClick={() => remove(r.id)}>
+                <MdiIcon name="delete-outline" variant="danger" />
+              </button>
+            </span>
           </li>
         ))}
       </ul>
