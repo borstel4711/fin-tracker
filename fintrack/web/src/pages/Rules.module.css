@@ -48,3 +48,9 @@
 .list li:first-child {
   border-top: none;
 }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

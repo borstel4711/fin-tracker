@@ -31,6 +31,8 @@ const emptyTxForm = {
   amount: '',
   direction: 'out' as 'in' | 'out',
   category_id: '',
+  loan_id: '',
+  loan_payment_type: '' as '' | 'rate' | 'sondertilgung',
 };
 
 function paymentTypeLabel(type: 'rate' | 'sondertilgung' | null): string {
@@ -156,6 +158,8 @@ export default function Transactions() {
       amount: String(Math.abs(tx.amount)),
       direction: tx.amount < 0 ? 'out' : 'in',
       category_id: tx.category_id != null ? String(tx.category_id) : '',
+      loan_id: tx.loan_id != null ? String(tx.loan_id) : '',
+      loan_payment_type: tx.loan_payment_type ?? '',
     });
     setShowForm(true);
   };
@@ -179,6 +183,8 @@ export default function Transactions() {
       counterparty: txForm.counterparty || null,
       purpose: txForm.purpose || null,
       category_id: txForm.category_id ? Number(txForm.category_id) : null,
+      loan_id: txForm.loan_id ? Number(txForm.loan_id) : null,
+      loan_payment_type: txForm.loan_id ? txForm.loan_payment_type || 'rate' : null,
     };
     try {
       if (editingTxId !== null) {
@@ -292,6 +298,40 @@ export default function Transactions() {
               ))}
             </select>
           </FormField>
+          <FormField label="Darlehen">
+            <select
+              className="input"
+              value={txForm.loan_id}
+              onChange={(e) =>
+                setTxForm({
+                  ...txForm,
+                  loan_id: e.target.value,
+                  loan_payment_type: e.target.value ? txForm.loan_payment_type || 'rate' : '',
+                })
+              }
+            >
+              <option value="">Kein Darlehen</option>
+              {loans.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {txForm.loan_id && (
+            <FormField label="Zahlungsart">
+              <select
+                className="input"
+                value={txForm.loan_payment_type}
+                onChange={(e) =>
+                  setTxForm({ ...txForm, loan_payment_type: e.target.value as 'rate' | 'sondertilgung' })
+                }
+              >
+                <option value="rate">{paymentTypeLabel('rate')}</option>
+                <option value="sondertilgung">{paymentTypeLabel('sondertilgung')}</option>
+              </select>
+            </FormField>
+          )}
           {formError && <p className={styles.error}>{formError}</p>}
           <div className={styles.formActions}>
             <button type="submit" className="button buttonPrimary">
