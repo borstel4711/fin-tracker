@@ -67,8 +67,15 @@ router.patch('/profiles/:id', (req, res) => {
   res.json(merged);
 });
 
+// import_batches referenzieren das Profil (FK) — Verweise erst lösen, sonst
+// schlägt das Löschen fehl, sobald über das Profil importiert wurde.
+const deleteProfileCascade = db.transaction((id) => {
+  db.prepare('UPDATE import_batches SET profile_id = NULL WHERE profile_id = ?').run(id);
+  db.prepare('DELETE FROM import_profiles WHERE id = ?').run(id);
+});
+
 router.delete('/profiles/:id', (req, res) => {
-  db.prepare('DELETE FROM import_profiles WHERE id = ?').run(req.params.id);
+  deleteProfileCascade(req.params.id);
   res.status(204).end();
 });
 

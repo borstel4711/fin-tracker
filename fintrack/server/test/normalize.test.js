@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseAmount, parseDate, hashRow, normalizeRow } = require('../import/normalize');
+const { parseAmount, parseDate, hashRow, normalizeRow, dedupeSameDayHashes } = require('../import/normalize');
 
 test('parseAmount: deutsches Format mit Dezimalkomma', () => {
   assert.equal(parseAmount('1.234,56', 1), 1234.56);
@@ -96,6 +96,45 @@ test('normalizeRow: getrennte Soll/Haben-Spalten -> Vorzeichen', () => {
   const creditRow = normalizeRow({ Datum: '01.01.2024', Soll: '', Haben: '200,00' }, profile);
   assert.equal(creditRow.amount, 200);
   assert.equal(creditRow.type, 'in');
+});
+
+test('dedupeSameDayHashes: erste Wiederholung behält Hash, zweite bekommt Suffix', () => {
+  const rows = [
+    { hash: 'abc', amount: -20 },
+    { hash: 'abc', amount: -20 },
+    { hash: 'xyz', amount: -5 },
+  ];
+  const result = dedupeSameDayHashes(rows);
+  assert.equal(result[0].hash, 'abc');
+  assert.equal(result[1].hash, 'abc#1');
+  assert.equal(result[2].hash, 'xyz');
+});
+
+test('dedupeSameDayHashes: dritte Wiederholung bekommt eigenen Suffix', () => {
+  const rows = [{ hash: 'abc' }, { hash: 'abc' }, { hash: 'abc' }];
+  const result = dedupeSameDayHashes(rows);
+  assert.deepEqual(
+    result.map((r) => r.hash),
+    ['abc', 'abc#1', 'abc#2']
+  );
+});
+
+test('dedupeSameDayHashes: erneuter Lauf mit identischer Reihenfolge reproduziert dieselben Hashes (Idempotenz)', () => {
+  const rows = [{ hash: 'abc' }, { hash: 'abc' }, { hash: 'def' }];
+  const first = dedupeSameDayHashes(rows).map((r) => r.hash);
+  const second = dedupeSameDayHashes(rows).map((r) => r.hash);
+  assert.deepEqual(first, second);
+});
+
+test('normalizeRow: Soll und Haben beide leer -> null (Zeile verworfen)', () => {
+  const profile = {
+    col_date: 'Datum',
+    date_format: 'DD.MM.YYYY',
+    decimal_comma: 1,
+    col_debit: 'Soll',
+    col_credit: 'Haben',
+  };
+  assert.equal(normalizeRow({ Datum: '01.01.2024', Soll: '', Haben: '' }, profile), null);
 });
 
 test('normalizeRow: ungültiges Datum oder Betrag -> null (Zeile verworfen)', () => {

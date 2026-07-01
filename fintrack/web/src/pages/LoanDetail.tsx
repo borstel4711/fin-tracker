@@ -8,17 +8,9 @@ import { chartTheme } from '../utils/chartTheme';
 import type { LoanBalancePoint, LoanDetailResponse, Transaction } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { formatDate } from '../utils/date';
+import { balanceAtDate } from '../utils/series';
 import MdiIcon from '../components/MdiIcon';
 import styles from './LoanDetail.module.css';
-
-function balanceAtDate(series: LoanBalancePoint[], date: string): number | null {
-  let result: number | null = null;
-  for (const p of series) {
-    if (p.date <= date) result = p.balance;
-    else break;
-  }
-  return result;
-}
 
 function paymentTypeLabel(type: 'rate' | 'sondertilgung'): string {
   return type === 'sondertilgung' ? 'Sondertilgung' : 'Rate';

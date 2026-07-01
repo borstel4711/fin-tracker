@@ -1,6 +1,10 @@
 const express = require('express');
 const db = require('../db');
 const { dateColumn, shiftMonth, lastNMonths, pctChange } = require('../lib/dates');
+const { computeExpectedRemaining, computeRemainingBudget } = require('../lib/monthStatus');
+const { findAnomalies } = require('../lib/anomalies');
+const { computeSavingsRates } = require('../lib/savingsRate');
+const { findRecurringPayments } = require('../lib/subscriptions');
 
 const router = express.Router();
 
@@ -39,25 +43,65 @@ router.get('/reports/monthly', (req, res) => {
   res.json(monthlyTotals(req.query.from, req.query.to, req.query.field));
 });
 
+router.get('/reports/savings-rate', (req, res) => {
+  const totals = monthlyTotals(req.query.from, req.query.to, req.query.field);
+  res.json(computeSavingsRates(totals));
+});
+
+// Größte Einzelbuchungen im Zeitraum (Standard: Ausgaben), sortiert nach
+// Betragshöhe. Kein eigenes lib-Modul nötig — reine Sortier-/Filterabfrage
+// ohne Berechnungslogik, wie auch die übrigen einfachen Report-Endpunkte.
+router.get('/reports/top-transactions', (req, res) => {
+  const { from, to, field, type = 'expense', limit } = req.query;
+  const dateCol = dateColumn(field, 't');
+  const parsedLimit = Number(limit);
+  const n = Math.min(50, Math.max(1, Number.isInteger(parsedLimit) ? parsedLimit : 10));
+
+  let query = `SELECT t.id, t.date, t.amount, t.counterparty, t.purpose, t.category_id FROM transactions t`;
+  const where = [];
+  const params = [];
+  if (type === 'expense') where.push('t.amount < 0');
+  else if (type === 'income') where.push('t.amount > 0');
+  if (from) {
+    where.push(`${dateCol} >= ?`);
+    params.push(from);
+  }
+  if (to) {
+    where.push(`${dateCol} <= ?`);
+    params.push(to);
+  }
+  if (where.length) query += ' WHERE ' + where.join(' AND ');
+  query += ` ORDER BY ABS(t.amount) DESC LIMIT ${n}`;
+
+  res.json(db.prepare(query).all(...params));
+});
+
+// Kategorisierte Buchungen werden netto je Kategorie verrechnet (Erstattungen
+// mindern die Ausgaben), damit die Beträge mit der Kategorien-Tabelle
+// (category-summary, vorzeichenbehaftete Summen) übereinstimmen. Nur "Nicht
+// kategorisiert" bleibt vorzeichen-gesplittet, weil dort unabhängige Einnahmen
+// und Ausgaben zusammenfallen und sich nicht sinnvoll saldieren lassen.
 function byCategoryTotals(from, to, field) {
   const dateCol = dateColumn(field, 't');
   let query = `
     SELECT c.id AS category_id, c.name, c.color,
-           SUM(-t.amount) AS total
+           SUM(t.amount) AS net,
+           SUM(CASE WHEN t.amount < 0 THEN -t.amount ELSE 0 END) AS gross_expense
     FROM transactions t
     LEFT JOIN categories c ON c.id = t.category_id
-    WHERE t.amount < 0
   `;
   const params = [];
+  const where = [];
   if (from) {
-    query += ` AND ${dateCol} >= ?`;
+    where.push(`${dateCol} >= ?`);
     params.push(from);
   }
   if (to) {
-    query += ` AND ${dateCol} <= ?`;
+    where.push(`${dateCol} <= ?`);
     params.push(to);
   }
-  query += ' GROUP BY t.category_id ORDER BY total DESC';
+  if (where.length) query += ' WHERE ' + where.join(' AND ');
+  query += ' GROUP BY t.category_id';
 
   return db
     .prepare(query)
@@ -66,37 +110,45 @@ function byCategoryTotals(from, to, field) {
       category_id: r.category_id,
       name: r.name || 'Nicht kategorisiert',
       color: r.color,
-      total: r.total || 0,
-    }));
+      total: r.category_id == null ? r.gross_expense || 0 : -(r.net || 0),
+    }))
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total);
 }
 
 router.get('/reports/by-category', (req, res) => {
   res.json(byCategoryTotals(req.query.from, req.query.to, req.query.field));
 });
 
+// Gleiche Netto-Semantik wie byCategoryTotals: eine Kategorie zählt in dem
+// Monat als Ausgabe (bzw. Einnahme), in dem ihr Monats-Netto negativ (bzw.
+// positiv) ist; Erstattungen mindern also den Ausgabenbalken statt als
+// separate Einnahme aufzutauchen.
 function categoryMonthlyTotals(type, from, to, field) {
   const dateCol = dateColumn(field, 't');
-  const amountExpr = type === 'income' ? 't.amount' : '-t.amount';
-  const amountFilter = type === 'income' ? 't.amount > 0' : 't.amount < 0';
 
   let query = `
     SELECT substr(${dateCol}, 1, 7) AS month, c.id AS category_id, c.name, c.color,
-           SUM(${amountExpr}) AS total
+           SUM(t.amount) AS net,
+           SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END) AS gross_income,
+           SUM(CASE WHEN t.amount < 0 THEN -t.amount ELSE 0 END) AS gross_expense
     FROM transactions t
     LEFT JOIN categories c ON c.id = t.category_id
-    WHERE ${amountFilter}
   `;
   const params = [];
+  const where = [];
   if (from) {
-    query += ` AND ${dateCol} >= ?`;
+    where.push(`${dateCol} >= ?`);
     params.push(from);
   }
   if (to) {
-    query += ` AND ${dateCol} <= ?`;
+    where.push(`${dateCol} <= ?`);
     params.push(to);
   }
+  if (where.length) query += ' WHERE ' + where.join(' AND ');
   query += ' GROUP BY month, t.category_id ORDER BY month ASC';
 
+  const sign = type === 'income' ? 1 : -1;
   return db
     .prepare(query)
     .all(...params)
@@ -105,8 +157,12 @@ function categoryMonthlyTotals(type, from, to, field) {
       category_id: r.category_id,
       name: r.name || 'Nicht kategorisiert',
       color: r.color,
-      total: r.total || 0,
-    }));
+      total:
+        r.category_id == null
+          ? (type === 'income' ? r.gross_income : r.gross_expense) || 0
+          : sign * (r.net || 0),
+    }))
+    .filter((r) => r.total > 0);
 }
 
 router.get('/reports/by-category-monthly', (req, res) => {
@@ -117,12 +173,13 @@ router.get('/reports/by-category-monthly', (req, res) => {
   res.json(categoryMonthlyTotals(type, from, to, field));
 });
 
-function categorySummary(rollup) {
+function categorySummary(rollup, field) {
   const months = lastNMonths(12);
   const months24 = lastNMonths(24);
   const currentMonth = months[months.length - 1];
   const currentYear = currentMonth.slice(0, 4);
   const prevYearMonth = shiftMonth(currentMonth, -12);
+  const dateCol = dateColumn(field);
 
   const allTimeRows = db
     .prepare(
@@ -137,7 +194,7 @@ function categorySummary(rollup) {
     .prepare(
       `SELECT category_id, SUM(amount) AS total
        FROM transactions
-       WHERE category_id IS NOT NULL AND substr(date, 1, 4) = ?
+       WHERE category_id IS NOT NULL AND substr(${dateCol}, 1, 4) = ?
        GROUP BY category_id`
     )
     .all(currentYear);
@@ -146,16 +203,16 @@ function categorySummary(rollup) {
     .prepare(
       `SELECT category_id, SUM(amount) AS total
        FROM transactions
-       WHERE category_id IS NOT NULL AND substr(date, 1, 7) = ?
+       WHERE category_id IS NOT NULL AND substr(${dateCol}, 1, 7) = ?
        GROUP BY category_id`
     )
     .all(prevYearMonth);
 
   const monthlyRows = db
     .prepare(
-      `SELECT substr(date, 1, 7) AS month, category_id, SUM(amount) AS total
+      `SELECT substr(${dateCol}, 1, 7) AS month, category_id, SUM(amount) AS total
        FROM transactions
-       WHERE category_id IS NOT NULL AND date >= ? AND substr(date, 1, 7) <= ?
+       WHERE category_id IS NOT NULL AND ${dateCol} >= ? AND substr(${dateCol}, 1, 7) <= ?
        GROUP BY month, category_id`
     )
     .all(`${months24[0]}-01`, currentMonth);
@@ -210,7 +267,7 @@ function categorySummary(rollup) {
   // einfach das Maximum verfügbarer Monate (auf eine gerade Zahl abgerundet,
   // damit beide Vergleichshälften gleich groß bleiben), statt fehlende
   // Monate als 0 in den Trend einzurechnen.
-  const earliestTx = db.prepare('SELECT MIN(date) AS d FROM transactions').get();
+  const earliestTx = db.prepare(`SELECT MIN(${dateCol}) AS d FROM transactions`).get();
   const earliestDataMonth = earliestTx.d ? earliestTx.d.slice(0, 7) : currentMonth;
   let availableMonths = 0;
   for (let m = currentMonth; m >= earliestDataMonth && availableMonths < 24; m = shiftMonth(m, -1)) {
@@ -230,6 +287,10 @@ function categorySummary(rollup) {
     const monthly = months.map((m) => Math.round((monthlyMap.get(m) || 0) * 100) / 100);
     const monthly24 = months24.map((m) => Math.round((monthlyMap.get(m) || 0) * 100) / 100);
     const sumLast12 = monthly.reduce((acc, v) => acc + v, 0);
+    // Ø nur über tatsächlich vorhandene Monate: bei kürzerer Historie würde
+    // ein fixer 12er-Teiler den Durchschnitt systematisch unterschätzen
+    // (betrifft auch Investitions-Prognose und Restbudget).
+    const avgWindow = Math.min(12, Math.max(1, availableMonths));
 
     return {
       category_id: r.category_id,
@@ -242,7 +303,7 @@ function categorySummary(rollup) {
       total_year: Math.round((yearTotal || 0) * 100) / 100,
       total_prev_month: monthly[monthly.length - 2],
       total_month: monthly[monthly.length - 1],
-      avg_per_month: Math.round((sumLast12 / 12) * 100) / 100,
+      avg_per_month: Math.round((sumLast12 / avgWindow) * 100) / 100,
       trend_1m_pct: trendPct(monthlyMap, months, 2),
       trend_6m_pct: trendPct(monthlyMap, months, 6),
       trend_12m_pct: trendPct(monthlyMap, months, 12),
@@ -257,7 +318,132 @@ function categorySummary(rollup) {
 
 router.get('/reports/category-summary', (req, res) => {
   const rollup = req.query.rollup === '1' || req.query.rollup === 'true';
-  res.json(categorySummary(rollup));
+  res.json(categorySummary(rollup, req.query.field));
+});
+
+// KPI-Daten für den laufenden Monat. Prognosebasiert: wiederkehrende
+// Kategorien werden mit ihrem Ø vergangener vollständiger Monate in den
+// Restmonat fortgeschrieben, der Puffer (Settings) wird abgezogen.
+router.get('/reports/month-status', (req, res) => {
+  const month = lastNMonths(1)[0];
+  const prevMonth = shiftMonth(month, -1);
+
+  const start = db
+    .prepare("SELECT * FROM balance_anchors WHERE type = 'start' ORDER BY date ASC LIMIT 1")
+    .get();
+  const currentBalance = start
+    ? Math.round(
+        (start.balance +
+          db.prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE date >= ?').get(start.date)
+            .total) *
+          100
+      ) / 100
+    : null;
+
+  const buffer = db.prepare('SELECT buffer FROM settings WHERE id = 1').get()?.buffer ?? 0;
+
+  // Ø nur über vollständige Monate (max. 12): der angebrochene laufende Monat
+  // würde den Durchschnitt sonst systematisch nach unten ziehen.
+  const earliestMonth = db.prepare('SELECT MIN(substr(date, 1, 7)) AS m FROM transactions').get().m;
+  let completeMonths = 0;
+  if (earliestMonth && earliestMonth <= prevMonth) {
+    for (let m = prevMonth; m >= earliestMonth && completeMonths < 12; m = shiftMonth(m, -1)) {
+      completeMonths++;
+    }
+  }
+
+  const recurringCategories = [];
+  if (completeMonths > 0) {
+    const fromMonth = shiftMonth(month, -completeMonths);
+    const avgRows = db
+      .prepare(
+        `SELECT t.category_id, SUM(t.amount) AS total
+         FROM transactions t
+         JOIN categories c ON c.id = t.category_id
+         WHERE c.mode = 'recurring' AND substr(t.date, 1, 7) >= ? AND substr(t.date, 1, 7) <= ?
+         GROUP BY t.category_id`
+      )
+      .all(fromMonth, prevMonth);
+    const mtdRows = db
+      .prepare(
+        `SELECT t.category_id, SUM(t.amount) AS total
+         FROM transactions t
+         JOIN categories c ON c.id = t.category_id
+         WHERE c.mode = 'recurring' AND substr(t.date, 1, 7) = ?
+         GROUP BY t.category_id`
+      )
+      .all(month);
+    const mtdByCategory = new Map(mtdRows.map((r) => [r.category_id, r.total || 0]));
+    for (const r of avgRows) {
+      recurringCategories.push({
+        avg: (r.total || 0) / completeMonths,
+        mtd: mtdByCategory.get(r.category_id) || 0,
+      });
+    }
+  }
+
+  const expected = computeExpectedRemaining(recurringCategories);
+
+  const mtd = db
+    .prepare(
+      `SELECT SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
+              SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) AS expense
+       FROM transactions WHERE substr(date, 1, 7) = ?`
+    )
+    .get(month);
+
+  const uncategorizedCount = db
+    .prepare('SELECT COUNT(*) AS n FROM transactions WHERE category_id IS NULL')
+    .get().n;
+
+  res.json({
+    month,
+    currentBalance,
+    buffer,
+    expectedRemainingIncome: expected.income,
+    expectedRemainingExpense: expected.expense,
+    remainingBudget: computeRemainingBudget({
+      currentBalance,
+      buffer,
+      expectedRemainingIncome: expected.income,
+      expectedRemainingExpense: expected.expense,
+    }),
+    mtdIncome: Math.round((mtd.income || 0) * 100) / 100,
+    mtdExpense: Math.round((mtd.expense || 0) * 100) / 100,
+    uncategorizedCount,
+  });
+});
+
+// Buchungen, die deutlich über dem Kategorie-Ø liegen (siehe lib/anomalies.js).
+// Fenster standardmäßig 12 Monate, deckungsgleich mit avg_per_month, damit
+// "Ø" in der App überall dieselbe Zeitspanne meint.
+router.get('/reports/anomalies', (req, res) => {
+  const months = Number(req.query.months) || 12;
+  const threshold = Number(req.query.threshold) || 2;
+  const fromMonth = lastNMonths(months)[0];
+
+  const rows = db
+    .prepare(
+      `SELECT id, date, amount, counterparty, purpose, category_id
+       FROM transactions
+       WHERE category_id IS NOT NULL AND substr(date, 1, 7) >= ?`
+    )
+    .all(fromMonth);
+
+  res.json(findAnomalies(rows, { threshold }));
+});
+
+// Erkannte Abos/Daueraufträge (siehe lib/subscriptions.js). Fenster
+// standardmäßig 12 Monate, wie bei anomalies/avg_per_month.
+router.get('/reports/subscriptions', (req, res) => {
+  const months = Number(req.query.months) || 12;
+  const fromMonth = lastNMonths(months)[0];
+
+  const rows = db
+    .prepare(`SELECT id, date, amount, counterparty, category_id FROM transactions WHERE substr(date, 1, 7) >= ?`)
+    .all(fromMonth);
+
+  res.json(findRecurringPayments(rows));
 });
 
 router.get('/reports/compare', (req, res) => {

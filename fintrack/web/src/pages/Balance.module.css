@@ -96,6 +96,17 @@
   margin-top: 2px;
 }
 
+.sourceBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
 .actions {
   display: flex;
   align-items: center;

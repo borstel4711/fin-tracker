@@ -80,8 +80,9 @@ export interface BalanceAnchor {
 }
 
 export interface Checkpoint extends BalanceAnchor {
-  computed: number;
-  diff: number;
+  // null, wenn der Anker vor dem Start-Anker liegt (kein Soll/Ist-Vergleich möglich)
+  computed: number | null;
+  diff: number | null;
 }
 
 export interface BalanceSeriesResponse {
@@ -202,12 +203,82 @@ export interface InflationBreakdownRow {
   officialRateYoy: number | null;
 }
 
+export interface CsvCheckpoint {
+  date: string;
+  balance: number;
+  created: boolean;
+}
+
 export interface ImportResult {
   batch_id: number;
   row_count: number;
   inserted: number;
   skipped: number;
   value_date_filled: number;
+  csv_checkpoint: CsvCheckpoint | null;
+}
+
+export interface ImportBatch {
+  id: number;
+  profile_id: number | null;
+  profile_name: string | null;
+  filename: string | null;
+  imported_at: string;
+  row_count: number;
+  inserted: number;
+  skipped: number;
+}
+
+export interface SavingsRatePoint {
+  month: string;
+  income: number;
+  expense: number;
+  net: number;
+  rate: number | null;
+  rate3m: number | null;
+  rate6m: number | null;
+}
+
+export interface TopTransaction {
+  id: number;
+  date: string;
+  amount: number;
+  counterparty: string | null;
+  purpose: string | null;
+  category_id: number | null;
+}
+
+export interface RecurringPayment {
+  counterparty: string | null;
+  amount: number;
+  occurrences: number;
+  firstDate: string;
+  lastDate: string;
+  avgIntervalDays: number;
+  category_id: number | null;
+}
+
+export interface AnomalyTransaction {
+  id: number;
+  date: string;
+  amount: number;
+  counterparty: string | null;
+  purpose: string | null;
+  category_id: number;
+  categoryAvg: number;
+  ratio: number;
+}
+
+export interface MonthStatusResponse {
+  month: string;
+  currentBalance: number | null;
+  buffer: number;
+  expectedRemainingIncome: number;
+  expectedRemainingExpense: number;
+  remainingBudget: number | null;
+  mtdIncome: number;
+  mtdExpense: number;
+  uncategorizedCount: number;
 }
 
 export interface CategorySummaryRow {

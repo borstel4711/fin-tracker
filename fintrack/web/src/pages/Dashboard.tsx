@@ -3,8 +3,9 @@ import Chart from 'react-apexcharts';
 import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
-import { formatDate, formatMonth, addDays, daysBetween } from '../utils/date';
+import { formatDate, formatMonth, addDays, daysBetween, currentMonth } from '../utils/date';
 import { formatCurrency } from '../utils/currency';
+import { balanceAtDate } from '../utils/series';
 import { chartTheme, chartPalette } from '../utils/chartTheme';
 import type {
   MonthlyTotal,
@@ -12,20 +13,22 @@ import type {
   CategoryTotal,
   CategoryMonthlyTotal,
   CompareResponse,
-  Transaction,
+  MonthStatusResponse,
+  AnomalyTransaction,
+  SavingsRatePoint,
+  TopTransaction,
+  RecurringPayment,
+  Category,
   InflationHeadlinePoint,
   InflationBreakdownRow,
 } from '../types';
 import DateRangeFilter, { type DateRange } from '../components/DateRangeFilter';
 import TrendArrow from '../components/TrendArrow';
+import KpiTile from '../components/KpiTile';
+import CategoryBadge from '../components/CategoryBadge';
 import styles from './Dashboard.module.css';
 
 const FORECAST_WEEKS = 13;
-
-function currentMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 function weeklyDatesBetween(start: string, end: string): string[] {
   const dates: string[] = [];
@@ -36,15 +39,6 @@ function weeklyDatesBetween(start: string, end: string): string[] {
   }
   if (dates[dates.length - 1] !== end) dates.push(end);
   return dates;
-}
-
-function balanceAtDate(series: { date: string; balance: number }[], date: string): number | null {
-  let result: number | null = null;
-  for (const p of series) {
-    if (p.date <= date) result = p.balance;
-    else break;
-  }
-  return result;
 }
 
 function pivotCategoryMonthly(rows: CategoryMonthlyTotal[], palette: string[]) {
@@ -85,7 +79,12 @@ export default function Dashboard() {
   const [byCategory, setByCategory] = useState<CategoryTotal[]>([]);
   const [byCategoryAllTime, setByCategoryAllTime] = useState<CategoryTotal[]>([]);
   const [compare, setCompare] = useState<CompareResponse | null>(null);
-  const [uncategorizedCount, setUncategorizedCount] = useState(0);
+  const [monthStatus, setMonthStatus] = useState<MonthStatusResponse | null>(null);
+  const [anomalies, setAnomalies] = useState<AnomalyTransaction[]>([]);
+  const [savingsRate, setSavingsRate] = useState<SavingsRatePoint[]>([]);
+  const [topExpenses, setTopExpenses] = useState<TopTransaction[]>([]);
+  const [subscriptions, setSubscriptions] = useState<RecurringPayment[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [inflationHeadline, setInflationHeadline] = useState<InflationHeadlinePoint[]>([]);
   const [inflationBreakdown, setInflationBreakdown] = useState<InflationBreakdownRow[]>([]);
   const [range, setRange] = useState<DateRange>({ from: '', to: '' });
@@ -108,10 +107,24 @@ export default function Dashboard() {
       .then(setIncomeMonthly)
       .catch(() => {});
     api.get<CategoryTotal[]>(`/reports/by-category?${qs}`).then(setByCategory).catch(() => {});
+    // Kontostandsverlauf respektiert denselben Zeitraum- und Datumsfeld-Filter
+    // wie die übrigen Charts.
+    api
+      .get<BalanceSeriesResponse>(`/balance/series?${qs}`)
+      .then(setBalanceSeries)
+      .catch(() => {});
+    api.get<SavingsRatePoint[]>(`/reports/savings-rate?${qs}`).then(setSavingsRate).catch(() => {});
+    api
+      .get<TopTransaction[]>(`/reports/top-transactions?type=expense&limit=10&${qs}`)
+      .then(setTopExpenses)
+      .catch(() => {});
   }, [range, dateField]);
 
   useEffect(() => {
     api.get<CategoryTotal[]>('/reports/by-category').then(setByCategoryAllTime).catch(() => {});
+    api.get<Category[]>('/categories').then(setCategories).catch(() => {});
+    api.get<AnomalyTransaction[]>('/reports/anomalies').then(setAnomalies).catch(() => {});
+    api.get<RecurringPayment[]>('/reports/subscriptions').then(setSubscriptions).catch(() => {});
   }, []);
 
   // Eigener Effekt, unabhängig von range/dateField: eine YoY-Kennzahl braucht
@@ -125,12 +138,8 @@ export default function Dashboard() {
   useEffect(() => {
     const compareParams = new URLSearchParams({ month });
     if (dateField !== 'date') compareParams.set('field', dateField);
-    api.get<BalanceSeriesResponse>('/balance/series').then(setBalanceSeries).catch(() => {});
     api.get<CompareResponse>(`/reports/compare?${compareParams.toString()}`).then(setCompare).catch(() => {});
-    api
-      .get<Transaction[]>('/transactions?uncategorized=true')
-      .then((rows) => setUncategorizedCount(rows.length))
-      .catch(() => {});
+    api.get<MonthStatusResponse>('/reports/month-status').then(setMonthStatus).catch(() => {});
   }, [month, dateField]);
 
   // X-Achse auf Wochenebene resampelt (alle 7 Tage), plus exakte
@@ -202,6 +211,8 @@ export default function Dashboard() {
     [historyDates, lastBalance, forecastBaselineValues]
   );
 
+  const categoryById = useMemo(() => new Map(categories.map((cat) => [cat.id, cat])), [categories]);
+
   const palette = useMemo(() => chartPalette(theme), [theme]);
   const expensePivot = useMemo(() => pivotCategoryMonthly(expenseMonthly, palette), [expenseMonthly, palette]);
   const incomePivot = useMemo(() => pivotCategoryMonthly(incomeMonthly, palette), [incomeMonthly, palette]);
@@ -223,6 +234,23 @@ export default function Dashboard() {
     { name: 'Einnahmen', type: 'column', data: monthly.map((m) => m.income) },
     { name: 'Ausgaben', type: 'column', data: monthly.map((m) => m.expense) },
     { name: 'Netto', type: 'line', data: monthly.map((m) => m.net) },
+  ];
+
+  const savingsRateOptions: ApexOptions = {
+    ...baseOptions,
+    chart: { ...baseOptions.chart, id: 'savings-rate' },
+    xaxis: { categories: savingsRate.map((p) => p.month) },
+    yaxis: { labels: { formatter: (val: number) => `${val.toFixed(0)} %` } },
+    tooltip: { ...baseOptions.tooltip, y: { formatter: (val: number) => `${val.toFixed(1)} %` } },
+    colors: [c.accent2, c.muted, c.accent],
+    stroke: { width: [2, 2, 1], dashArray: [0, 0, 4], curve: 'smooth' },
+    dataLabels: { enabled: false },
+    legend: { labels: { colors: foreColor } },
+  };
+  const savingsRateSeries = [
+    { name: 'Sparquote', type: 'line', data: savingsRate.map((p) => p.rate) },
+    { name: 'Ø 3 Monate', type: 'line', data: savingsRate.map((p) => p.rate3m) },
+    { name: 'Ø 6 Monate', type: 'line', data: savingsRate.map((p) => p.rate6m) },
   ];
 
   const balanceOptions: ApexOptions = {
@@ -327,6 +355,44 @@ export default function Dashboard() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.kpiRow}>
+        <KpiTile
+          label="Restbudget (Monat)"
+          value={monthStatus?.remainingBudget != null ? formatCurrency(monthStatus.remainingBudget) : '–'}
+          tone={monthStatus?.remainingBudget != null && monthStatus.remainingBudget < 0 ? 'danger' : 'default'}
+          sub={
+            monthStatus?.remainingBudget != null
+              ? `noch erwartet: +${formatCurrency(monthStatus.expectedRemainingIncome)} / −${formatCurrency(
+                  monthStatus.expectedRemainingExpense
+                )} · Puffer ${formatCurrency(monthStatus.buffer)}`
+              : 'Startsaldo benötigt (Saldo-Seite)'
+          }
+          href={monthStatus?.remainingBudget == null ? '#/balance' : undefined}
+        />
+        <KpiTile
+          label="Kontostand"
+          value={monthStatus?.currentBalance != null ? formatCurrency(monthStatus.currentBalance) : '–'}
+          sub={
+            monthStatus?.currentBalance != null
+              ? 'berechnet aus Startsaldo + Buchungen'
+              : 'Startsaldo benötigt (Saldo-Seite)'
+          }
+          href={monthStatus?.currentBalance == null ? '#/balance' : undefined}
+        />
+        <KpiTile
+          label="Ausgaben MTD"
+          value={monthStatus ? formatCurrency(monthStatus.mtdExpense) : '–'}
+          sub={compare ? `Vormonat gesamt: ${formatCurrency(compare.previousMonth.expense)}` : undefined}
+        />
+        <KpiTile
+          label="Nicht kategorisiert"
+          value={monthStatus ? String(monthStatus.uncategorizedCount) : '–'}
+          tone={monthStatus && monthStatus.uncategorizedCount > 0 ? 'danger' : 'default'}
+          sub="Buchungen zuordnen →"
+          href="#/transactions?uncategorized=true"
+        />
+      </div>
+
       <div className={`card ${styles.filterPane}`}>
         <DateRangeFilter value={range} onChange={setRange} />
         <div className={styles.filterRow}>
@@ -355,11 +421,19 @@ export default function Dashboard() {
       </section>
 
       <section>
+        <h2 className={styles.sectionTitle}>Sparquote</h2>
+        <div className={`card ${styles.chartCard}`}>
+          <Chart options={savingsRateOptions} series={savingsRateSeries} type="line" height="100%" />
+        </div>
+        <p className={styles.caption}>Netto geteilt durch Einnahmen je Monat, plus gleitender 3-/6-Monats-Schnitt.</p>
+      </section>
+
+      <section>
         <h2 className={styles.sectionTitle}>Kontostandsverlauf</h2>
         <div className={`card ${styles.chartCard}`}>
           <Chart options={balanceOptions} series={balanceChartSeries} type="line" height="100%" />
         </div>
-        {balanceSeries.checkpoints.some((c) => Math.abs(c.diff) > 0.01) && (
+        {balanceSeries.checkpoints.some((c) => c.diff != null && Math.abs(c.diff) > 0.01) && (
           <p className={styles.warning}>
             Achtung: Abweichung zwischen berechnetem und eingetragenem Saldo an mindestens einem Stützpunkt.
           </p>
@@ -439,6 +513,128 @@ export default function Dashboard() {
         </div>
       </section>
 
+      <section>
+        <h2 className={styles.sectionTitle}>Erkannte Abos &amp; Daueraufträge</h2>
+        {subscriptions.length === 0 ? (
+          <p className={styles.caption}>
+            Keine wiederkehrenden Zahlungen erkannt (mind. 3× mit gleichem Betrag, monatlicher Abstand).
+          </p>
+        ) : (
+          <div className={`cardFlush ${styles.tableWrap}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Empfänger</th>
+                  <th>Kategorie</th>
+                  <th className={styles.amountRight}>Betrag / Monat</th>
+                  <th className={styles.amountRight}>Vorkommen</th>
+                  <th>Zeitraum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscriptions.map((s) => (
+                  <tr key={`${s.counterparty}-${s.amount}`}>
+                    <td data-label="Empfänger">
+                      <a className="link" href={`#/transactions?q=${encodeURIComponent(s.counterparty ?? '')}`}>
+                        {s.counterparty || '–'}
+                      </a>
+                    </td>
+                    <td data-label="Kategorie">
+                      <CategoryBadge category={s.category_id != null ? categoryById.get(s.category_id) : null} />
+                    </td>
+                    <td className={styles.amountRight} data-label="Betrag / Monat">{formatCurrency(s.amount)}</td>
+                    <td className={styles.amountRight} data-label="Vorkommen">{s.occurrences}×</td>
+                    <td className={styles.meta} data-label="Zeitraum">
+                      {formatDate(s.firstDate)} – {formatDate(s.lastDate)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className={styles.sectionTitle}>Größte Ausgaben</h2>
+        {topExpenses.length === 0 ? (
+          <p className={styles.caption}>Keine Ausgaben im gewählten Zeitraum.</p>
+        ) : (
+          <div className={`cardFlush ${styles.tableWrap}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Kategorie</th>
+                  <th>Empfänger / Zweck</th>
+                  <th className={styles.amountRight}>Betrag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topExpenses.map((t) => (
+                  <tr key={t.id}>
+                    <td data-label="Datum">{formatDate(t.date)}</td>
+                    <td data-label="Kategorie">
+                      <CategoryBadge category={t.category_id != null ? categoryById.get(t.category_id) : null} />
+                    </td>
+                    <td className={styles.meta} data-label="Empfänger / Zweck">
+                      {t.counterparty || t.purpose || '–'}
+                    </td>
+                    <td className={styles.amountRight} data-label="Betrag">
+                      <a className="link" href={`#/transactions?q=${encodeURIComponent(t.counterparty ?? '')}`}>
+                        {formatCurrency(t.amount)}
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className={styles.sectionTitle}>Auffällige Buchungen</h2>
+        {anomalies.length === 0 ? (
+          <p className={styles.caption}>Keine Buchungen der letzten 12 Monate weichen auffällig vom Kategorie-Ø ab.</p>
+        ) : (
+          <div className={`cardFlush ${styles.tableWrap}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Kategorie</th>
+                  <th>Empfänger / Zweck</th>
+                  <th className={styles.amountRight}>Betrag</th>
+                  <th className={styles.amountRight}>Kategorie-Ø</th>
+                  <th className={styles.amountRight}>Abweichung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anomalies.slice(0, 15).map((a) => (
+                  <tr key={a.id}>
+                    <td data-label="Datum">{formatDate(a.date)}</td>
+                    <td data-label="Kategorie">
+                      <CategoryBadge category={categoryById.get(a.category_id)} />
+                    </td>
+                    <td className={styles.meta} data-label="Empfänger / Zweck">
+                      {a.counterparty || a.purpose || '–'}
+                    </td>
+                    <td className={styles.amountRight} data-label="Betrag">{formatCurrency(a.amount)}</td>
+                    <td className={styles.amountRight} data-label="Kategorie-Ø">{formatCurrency(a.categoryAvg)}</td>
+                    <td className={styles.amountRight} data-label="Abweichung">
+                      <a className="link" href={`#/transactions?q=${encodeURIComponent(a.counterparty ?? '')}`}>
+                        {a.ratio.toFixed(1)}× Ø
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <div className={styles.statsGrid}>
         <section>
           <h2 className={styles.sectionTitle}>Ausgaben nach Kategorie (gefiltert)</h2>
@@ -466,11 +662,6 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <section>
-        <a href="#/transactions?uncategorized=true" className={`link ${styles.footerLink}`}>
-          {uncategorizedCount} nicht kategorisierte Buchung(en) ansehen →
-        </a>
-      </section>
     </div>
   );
 }
@@ -480,7 +671,7 @@ function CompareRow({ label, data }: { label: string; data: MonthlyTotal }) {
     <div className={styles.compareRow}>
       <span className={styles.compareLabel}>{label}</span>
       <span>
-        Ein. {data.income.toFixed(2)} € · Aus. {data.expense.toFixed(2)} € · Netto {data.net.toFixed(2)} €
+        Ein. {formatCurrency(data.income)} · Aus. {formatCurrency(data.expense)} · Netto {formatCurrency(data.net)}
       </span>
     </div>
   );

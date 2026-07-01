@@ -88,6 +88,7 @@ export default function Balance() {
   };
 
   const remove = async (id: number) => {
+    if (!window.confirm('Saldo-Anker wirklich löschen?')) return;
     await api.delete(`/balance/anchors/${id}`);
     load();
   };
@@ -263,15 +264,20 @@ export default function Balance() {
                   <td data-label="Datum">{formatDate(a.date)}</td>
                   <td data-label="Typ">
                     {TYPE_LABELS[a.type]}
+                    {a.source === 'csv' && <span className={styles.sourceBadge}>CSV</span>}
                     {a.note && <div className={styles.subLabel}>{a.note}</div>}
                   </td>
-                  <td className={styles.amountRight} data-label="Erfasst">{a.balance.toFixed(2)} €</td>
-                  <td className={styles.amountRight} data-label="Berechnet">{cp ? `${cp.computed.toFixed(2)} €` : '–'}</td>
+                  <td className={styles.amountRight} data-label="Erfasst">{formatCurrency(a.balance)}</td>
+                  <td className={styles.amountRight} data-label="Berechnet">
+                    {cp?.computed != null ? formatCurrency(cp.computed) : '–'}
+                  </td>
                   <td
-                    className={`${styles.amountRight} ${cp && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''}`}
+                    className={`${styles.amountRight} ${
+                      cp?.diff != null && Math.abs(cp.diff) > 0.01 ? styles.diffBad : ''
+                    }`}
                     data-label="Differenz"
                   >
-                    {cp ? `${cp.diff.toFixed(2)} €` : '–'}
+                    {cp?.diff != null ? formatCurrency(cp.diff) : '–'}
                   </td>
                   <td
                     className={`${styles.amountRight} ${

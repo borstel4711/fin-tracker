@@ -1,4 +1,5 @@
 export type TrendDirection = 'up' | 'down' | 'flat';
+export type TrendVariant = 'accent' | 'danger' | 'muted';
 
 export function trendDirection(pct: number): TrendDirection {
   if (pct > 5) return 'up';
@@ -6,8 +7,11 @@ export function trendDirection(pct: number): TrendDirection {
   return 'flat';
 }
 
-export const TREND_VARIANT: Record<TrendDirection, 'accent' | 'danger' | 'muted'> = {
-  up: 'danger',
-  down: 'accent',
-  flat: 'muted',
-};
+// Standard-Semantik ist auf Ausgaben ausgelegt (steigend = schlecht). Für
+// Einnahmen-Kategorien (`positiveIsGood`) dreht sich die Färbung um:
+// steigendes Gehalt ist gut, sinkendes schlecht.
+export function trendVariant(direction: TrendDirection, positiveIsGood = false): TrendVariant {
+  if (direction === 'flat') return 'muted';
+  const isGood = direction === 'up' ? positiveIsGood : !positiveIsGood;
+  return isGood ? 'accent' : 'danger';
+}

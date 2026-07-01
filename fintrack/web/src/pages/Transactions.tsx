@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api';
-import type { Category, Loan, Transaction } from '../types';
+import type { AnomalyTransaction, Category, Loan, Transaction } from '../types';
 import { formatDate } from '../utils/date';
+import { formatCurrency } from '../utils/currency';
 import { groupCategoriesByParent } from '../utils/categoryTree';
 import CategoryBadge from '../components/CategoryBadge';
 import DateRangeFilter from '../components/DateRangeFilter';
@@ -44,6 +45,7 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [anomalies, setAnomalies] = useState<AnomalyTransaction[]>([]);
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'date', dir: 'desc' });
 
@@ -84,6 +86,10 @@ export default function Transactions() {
   useEffect(() => {
     api.get<Category[]>('/categories').then(setCategories).catch(() => {});
     api.get<Loan[]>('/loans').then(setLoans).catch(() => {});
+    // Anomalien werden nicht neu geladen, wenn sich nur die Seitenfilter ändern
+    // (from/to/category/q) — die Bewertung bezieht sich immer auf die letzten
+    // 12 Monate unabhängig vom aktuell angezeigten Ausschnitt.
+    api.get<AnomalyTransaction[]>('/reports/anomalies').then(setAnomalies).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -105,6 +111,7 @@ export default function Transactions() {
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const loanById = new Map(loans.map((l) => [l.id, l]));
+  const anomalyById = new Map(anomalies.map((a) => [a.id, a]));
   const groupedCategories = useMemo(() => groupCategoriesByParent(categories), [categories]);
 
   const toggleSort = (key: SortKey) => {
@@ -440,7 +447,16 @@ export default function Transactions() {
                   className={`${styles.amountRight} ${tx.amount < 0 ? styles.negative : styles.positive}`}
                   data-label="Betrag"
                 >
-                  {tx.amount.toFixed(2)} €
+                  {formatCurrency(tx.amount)}
+                  {anomalyById.has(tx.id) && (
+                    <span
+                      title={`${anomalyById.get(tx.id)!.ratio.toFixed(1)}× Kategorie-Ø (${formatCurrency(
+                        anomalyById.get(tx.id)!.categoryAvg
+                      )})`}
+                    >
+                      <MdiIcon name="alert-circle-outline" variant="danger" size={14} />
+                    </span>
+                  )}
                 </td>
                 <td data-label="Kategorie">
                   {editingRowId === tx.id ? (

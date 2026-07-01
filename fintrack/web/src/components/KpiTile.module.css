@@ -1,0 +1,40 @@
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.clickable {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.clickable:hover {
+  border-color: var(--accent2);
+}
+
+.label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.value.danger {
+  color: var(--red);
+}
+
+.value.success {
+  color: var(--green);
+}
+
+.sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

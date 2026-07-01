@@ -1,7 +1,7 @@
-import { trendDirection, TREND_VARIANT } from '../utils/trend';
+import { trendDirection, trendVariant, type TrendVariant } from '../utils/trend';
 import styles from './TrendSparklineTile.module.css';
 
-const VARIANT_COLOR_VAR: Record<'accent' | 'danger' | 'muted', string> = {
+const VARIANT_COLOR_VAR: Record<TrendVariant, string> = {
   accent: 'var(--accent2)',
   danger: 'var(--red)',
   muted: 'var(--text-muted)',
@@ -25,13 +25,15 @@ export default function TrendSparklineTile({
   label,
   pct,
   series,
+  positiveIsGood = false,
 }: {
   label: string;
   pct: number;
   series: number[];
+  positiveIsGood?: boolean;
 }) {
   const direction = trendDirection(pct);
-  const color = VARIANT_COLOR_VAR[TREND_VARIANT[direction]];
+  const color = VARIANT_COLOR_VAR[trendVariant(direction, positiveIsGood)];
   const points = buildSparklinePoints(series, 100, 32);
 
   return (

@@ -46,7 +46,9 @@ function normalizeRow(rawRow, profile) {
   } else {
     const debit = parseAmount(rawRow[profile.col_debit], profile.decimal_comma);
     const credit = parseAmount(rawRow[profile.col_credit], profile.decimal_comma);
-    amount = (credit || 0) - Math.abs(debit || 0);
+    // Beide Felder leer (z. B. Summen-/Infozeile) => keine Buchung, statt
+    // eines 0-€-Eintrags.
+    amount = debit == null && credit == null ? null : (credit || 0) - Math.abs(debit || 0);
   }
 
   const counterparty = profile.col_counterparty
@@ -73,4 +75,22 @@ function normalizeRow(rawRow, profile) {
   };
 }
 
-module.exports = { parseAmount, parseDate, hashRow, normalizeRow };
+// Zwei Buchungen mit identischem date|amount|counterparty|purpose (z. B. zwei
+// gleich hohe Bargeldabhebungen am selben Tag) erzeugen sonst denselben Hash
+// — die zweite würde beim Import fälschlich als Dublette des ersten
+// verworfen. Die n-te Wiederholung derselben Kombination *innerhalb der
+// Datei* bekommt daher einen Suffix; die erste Wiederholung behält ihren
+// Hash unverändert, damit bereits importierte Bestandsdaten (ohne Suffix)
+// weiterhin korrekt als Dubletten erkannt werden. Ein erneuter Import
+// derselben Datei reproduziert dieselbe Reihenfolge und damit dieselben
+// Suffix-Hashes, bleibt also idempotent.
+function dedupeSameDayHashes(rows) {
+  const seen = new Map();
+  return rows.map((row) => {
+    const count = seen.get(row.hash) || 0;
+    seen.set(row.hash, count + 1);
+    return count === 0 ? row : { ...row, hash: `${row.hash}#${count}` };
+  });
+}
+
+module.exports = { parseAmount, parseDate, hashRow, normalizeRow, dedupeSameDayHashes };

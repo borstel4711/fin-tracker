@@ -87,6 +87,7 @@ export default function Loans() {
   };
 
   const remove = async (id: number) => {
+    if (!window.confirm('Darlehen wirklich löschen? Verknüpfte Buchungen bleiben erhalten, verlieren aber ihre Zuordnung.')) return;
     await api.delete(`/loans/${id}`);
     if (editingId === id) cancelEdit();
     load();

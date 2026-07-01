@@ -209,6 +209,13 @@ export default function Categories() {
   };
 
   const remove = async (id: number) => {
+    if (
+      !window.confirm(
+        'Kategorie wirklich löschen? Zugeordnete Buchungen werden auf „Nicht kategorisiert" gesetzt, zugehörige Regeln und gelernte Zuordnungen werden gelöscht.'
+      )
+    ) {
+      return;
+    }
     await api.delete(`/categories/${id}`);
     if (editingId === id) cancelEdit();
     load();
@@ -453,23 +460,43 @@ export default function Categories() {
                   <td className={styles.amountRight} data-label="Betrag MTD">{formatCurrency(row.total_month)}</td>
                   <td className={styles.amountRight} data-label="Ø Betrag/Monat">{formatCurrency(row.avg_per_month)}</td>
                   <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="1M Trend">
-                    <TrendArrow pct={row.trend_1m_pct} />
+                    <TrendArrow pct={row.trend_1m_pct} positiveIsGood={row.avg_per_month > 0} />
                   </td>
                   <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="6M Trend">
-                    <TrendArrow pct={row.trend_6m_pct} />
+                    <TrendArrow pct={row.trend_6m_pct} positiveIsGood={row.avg_per_month > 0} />
                   </td>
                   <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="12M Trend">
-                    <TrendArrow pct={row.trend_12m_pct} />
+                    <TrendArrow pct={row.trend_12m_pct} positiveIsGood={row.avg_per_month > 0} />
                   </td>
                   <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="24M Trend">
-                    <TrendArrow pct={row.trend_24m_pct} />
+                    <TrendArrow pct={row.trend_24m_pct} positiveIsGood={row.avg_per_month > 0} />
                   </td>
                   <td className={styles.trendGridCell}>
                     <div className={styles.trendGrid}>
-                      <TrendSparklineTile label="1M" pct={row.trend_1m_pct} series={row.monthly.slice(-2)} />
-                      <TrendSparklineTile label="6M" pct={row.trend_6m_pct} series={row.monthly.slice(-6)} />
-                      <TrendSparklineTile label="12M" pct={row.trend_12m_pct} series={row.monthly} />
-                      <TrendSparklineTile label="24M" pct={row.trend_24m_pct} series={row.monthly24} />
+                      <TrendSparklineTile
+                        label="1M"
+                        pct={row.trend_1m_pct}
+                        series={row.monthly.slice(-2)}
+                        positiveIsGood={row.avg_per_month > 0}
+                      />
+                      <TrendSparklineTile
+                        label="6M"
+                        pct={row.trend_6m_pct}
+                        series={row.monthly.slice(-6)}
+                        positiveIsGood={row.avg_per_month > 0}
+                      />
+                      <TrendSparklineTile
+                        label="12M"
+                        pct={row.trend_12m_pct}
+                        series={row.monthly}
+                        positiveIsGood={row.avg_per_month > 0}
+                      />
+                      <TrendSparklineTile
+                        label="24M"
+                        pct={row.trend_24m_pct}
+                        series={row.monthly24}
+                        positiveIsGood={row.avg_per_month > 0}
+                      />
                     </div>
                   </td>
                 </tr>

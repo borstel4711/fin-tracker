@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.1.26
+
+- Neue KPI-Kachelzeile im Dashboard: verfügbares Restbudget im laufenden
+  Monat (Kontostand + erwartete restliche wiederkehrende Einnahmen −
+  erwartete restliche wiederkehrende Ausgaben − Puffer), Kontostand,
+  Ausgaben MTD, nicht kategorisierte Buchungen.
+- Neue Sektion "Auffällige Buchungen": Buchungen, die deutlich über dem
+  Kategorie-Durchschnitt der letzten 12 Monate liegen, inklusive
+  Warnsymbol in der Buchungsliste.
+- Neue Sektion "Erkannte Abos & Daueraufträge": wiederkehrende Zahlungen
+  (gleicher Empfänger + Betrag, monatlicher Abstand, mind. 3 Vorkommen)
+  automatisch erkannt und mit Zeitraum/Vorkommen aufgelistet.
+- Neue Sektion "Größte Ausgaben": Top-10-Einzelbuchungen im gewählten
+  Zeitraum.
+- Neuer Chart "Sparquote": Netto/Einnahmen je Monat, plus gleitender
+  3-/6-Monats-Schnitt.
+- Import-Historie jetzt auf der Import-Seite sichtbar; CSV-Imports mit
+  Saldo-Spalte legen automatisch einen Soll/Ist-Checkpoint an bzw.
+  aktualisieren ihn.
+- Dublettenerkennung beim CSV-Import: mehrere identische Buchungen am
+  selben Tag (z. B. zwei gleich hohe Bargeldabhebungen) werden nicht mehr
+  fälschlich als Dubletten verworfen.
+- Wertstellungs-Umschalter (Buchungsdatum/Wertstellung) gilt jetzt auch für
+  Kontostandsverlauf und Kategorie-Übersicht.
+- Diverse Konsistenz-Korrekturen: Erstattungen werden netto je Kategorie
+  verrechnet (Donut/Verlauf stimmen wieder mit der Kategorien-Tabelle
+  überein), Monatsdurchschnitte rechnen über die tatsächlich verfügbare
+  Historie statt fix durch 12, "Regeln neu anwenden" räumt veraltete
+  Zuordnungen auf, Importprofile lassen sich löschen, auch wenn bereits
+  darüber importiert wurde, einheitliche Währungsformatierung und
+  Lösch-Bestätigungen in der gesamten App.
+
 ## 0.1.21
 
 - Neuer Menüpunkt "Darlehen": Darlehen anlegen, bearbeiten und löschen

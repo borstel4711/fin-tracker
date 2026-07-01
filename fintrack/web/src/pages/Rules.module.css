@@ -32,6 +32,18 @@
   width: 80px;
 }
 
+.result {
+  font-size: 13px;
+  color: var(--green);
+}
+
+.ruleLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .list {
   list-style: none;
   font-size: 13px;
