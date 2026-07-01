@@ -222,10 +222,12 @@ export interface CategorySummaryRow {
   total_prev_month: number;
   total_month: number;
   avg_per_month: number;
+  trend_1m_pct: number;
   trend_6m_pct: number;
   trend_12m_pct: number;
   trend_24m_pct: number;
   monthly: number[];
+  monthly24: number[];
 }
 
 export interface CategorySummaryResponse {

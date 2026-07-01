@@ -117,7 +117,7 @@ router.get('/reports/by-category-monthly', (req, res) => {
   res.json(categoryMonthlyTotals(type, from, to, field));
 });
 
-function categorySummary() {
+function categorySummary(rollup) {
   const months = lastNMonths(12);
   const months24 = lastNMonths(24);
   const currentMonth = months[months.length - 1];
@@ -168,6 +168,34 @@ function categorySummary() {
   const yearByCategory = new Map(yearRows.map((r) => [r.category_id, r.total || 0]));
   const prevYearMonthByCategory = new Map(prevYearMonthRows.map((r) => [r.category_id, r.total || 0]));
 
+  // Nur wenn der Rollup-Filter aktiv ist, Unterkategorie-Beträge zusätzlich
+  // auf ihre Top-Kategorie umlegen (Verschachtelung ist max. 1 Ebene tief).
+  let rolledMonthlyByCategory = new Map();
+  let rolledYearByCategory = new Map();
+  let rolledPrevYearMonthByCategory = new Map();
+  if (rollup) {
+    const parentByCategory = new Map(allTimeRows.map((r) => [r.category_id, r.parent_id]));
+    const topIdOf = (categoryId) => parentByCategory.get(categoryId) ?? categoryId;
+
+    for (const row of monthlyRows) {
+      const topId = topIdOf(row.category_id);
+      if (!rolledMonthlyByCategory.has(topId)) rolledMonthlyByCategory.set(topId, new Map());
+      const rolledMonths = rolledMonthlyByCategory.get(topId);
+      rolledMonths.set(row.month, (rolledMonths.get(row.month) || 0) + (row.total || 0));
+    }
+
+    const rollUpTotals = (rows) => {
+      const rolled = new Map();
+      for (const r of rows) {
+        const topId = topIdOf(r.category_id);
+        rolled.set(topId, (rolled.get(topId) || 0) + (r.total || 0));
+      }
+      return rolled;
+    };
+    rolledYearByCategory = rollUpTotals(yearRows);
+    rolledPrevYearMonthByCategory = rollUpTotals(prevYearMonthRows);
+  }
+
   function trendPct(monthlyMap, monthList, windowSize) {
     if (windowSize < 2) return 0;
     const half = windowSize / 2;
@@ -191,8 +219,16 @@ function categorySummary() {
   const trend24Window = availableMonths - (availableMonths % 2);
 
   const categories = allTimeRows.map((r) => {
-    const monthlyMap = monthlyByCategory.get(r.category_id) || new Map();
+    const useRollup = rollup && r.parent_id == null;
+    const sources = useRollup
+      ? { monthly: rolledMonthlyByCategory, year: rolledYearByCategory, prevYearMonth: rolledPrevYearMonthByCategory }
+      : { monthly: monthlyByCategory, year: yearByCategory, prevYearMonth: prevYearMonthByCategory };
+    const monthlyMap = sources.monthly.get(r.category_id) || new Map();
+    const yearTotal = sources.year.get(r.category_id);
+    const prevYearMonthTotal = sources.prevYearMonth.get(r.category_id);
+
     const monthly = months.map((m) => Math.round((monthlyMap.get(m) || 0) * 100) / 100);
+    const monthly24 = months24.map((m) => Math.round((monthlyMap.get(m) || 0) * 100) / 100);
     const sumLast12 = monthly.reduce((acc, v) => acc + v, 0);
 
     return {
@@ -202,15 +238,17 @@ function categorySummary() {
       color: r.color,
       icon: r.icon,
       mode: r.mode,
-      total_prev_year_month: Math.round((prevYearMonthByCategory.get(r.category_id) || 0) * 100) / 100,
-      total_year: Math.round((yearByCategory.get(r.category_id) || 0) * 100) / 100,
+      total_prev_year_month: Math.round((prevYearMonthTotal || 0) * 100) / 100,
+      total_year: Math.round((yearTotal || 0) * 100) / 100,
       total_prev_month: monthly[monthly.length - 2],
       total_month: monthly[monthly.length - 1],
       avg_per_month: Math.round((sumLast12 / 12) * 100) / 100,
+      trend_1m_pct: trendPct(monthlyMap, months, 2),
       trend_6m_pct: trendPct(monthlyMap, months, 6),
       trend_12m_pct: trendPct(monthlyMap, months, 12),
       trend_24m_pct: trendPct(monthlyMap, months24, trend24Window),
       monthly,
+      monthly24,
     };
   });
 
@@ -218,7 +256,8 @@ function categorySummary() {
 }
 
 router.get('/reports/category-summary', (req, res) => {
-  res.json(categorySummary());
+  const rollup = req.query.rollup === '1' || req.query.rollup === 'true';
+  res.json(categorySummary(rollup));
 });
 
 router.get('/reports/compare', (req, res) => {

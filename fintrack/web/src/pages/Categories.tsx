@@ -8,6 +8,7 @@ import { COICOP_CODES, type Category, type CategorySummaryResponse, type Categor
 import MdiIcon from '../components/MdiIcon';
 import CategoryBadge from '../components/CategoryBadge';
 import TrendArrow from '../components/TrendArrow';
+import TrendSparklineTile from '../components/TrendSparklineTile';
 import Dialog from '../components/Dialog';
 import FormField from '../components/FormField';
 import { formatCurrency } from '../utils/currency';
@@ -56,6 +57,7 @@ type SummarySortKey =
   | 'total_prev_month'
   | 'total_month'
   | 'avg_per_month'
+  | 'trend_1m_pct'
   | 'trend_6m_pct'
   | 'trend_12m_pct'
   | 'trend_24m_pct';
@@ -69,6 +71,7 @@ const SUMMARY_COLUMNS: { key: SummarySortKey; label: string; amountRight?: boole
   { key: 'total_prev_month', label: 'Betrag PM', amountRight: true },
   { key: 'total_month', label: 'Betrag MTD', amountRight: true },
   { key: 'avg_per_month', label: 'Ø Betrag/Monat', amountRight: true },
+  { key: 'trend_1m_pct', label: '1M Trend', amountRight: true },
   { key: 'trend_6m_pct', label: '6M Trend', amountRight: true },
   { key: 'trend_12m_pct', label: '12M Trend', amountRight: true },
   { key: 'trend_24m_pct', label: '24M Trend', amountRight: true },
@@ -92,6 +95,14 @@ function lerpColor(from: string, to: string, t: number): string {
   return `#${channel(fr, tr)}${channel(fg, tg)}${channel(fb, tb)}`;
 }
 
+// Log-Skalierung statt linearer Bin-Grenzen: bei schiefen Finanzdaten (wenige
+// große Ausreißer, viele kleine Beträge) sorgt das dafür, dass der Großteil
+// der Werte über mehrere Farbstufen gespreizt wird, statt in den blassen
+// mittleren Bins zu verschwinden.
+function logBoundary(i: number, bins: number, max: number): number {
+  return Math.expm1((i / bins) * Math.log1p(max));
+}
+
 function buildHeatmapRanges(maxAbs: number, theme: 'dark' | 'light') {
   const neutral = HEATMAP_NEUTRAL[theme];
   const negative = HEATMAP_NEGATIVE[theme];
@@ -100,15 +111,15 @@ function buildHeatmapRanges(maxAbs: number, theme: 'dark' | 'light') {
   const ranges: { from: number; to: number; color: string }[] = [];
   for (let i = HEATMAP_BINS; i >= 1; i--) {
     ranges.push({
-      from: -safeMax * (i / HEATMAP_BINS),
-      to: -safeMax * ((i - 1) / HEATMAP_BINS),
+      from: -logBoundary(i, HEATMAP_BINS, safeMax),
+      to: -logBoundary(i - 1, HEATMAP_BINS, safeMax),
       color: lerpColor(neutral, negative, i / HEATMAP_BINS),
     });
   }
   for (let i = 1; i <= HEATMAP_BINS; i++) {
     ranges.push({
-      from: safeMax * ((i - 1) / HEATMAP_BINS),
-      to: safeMax * (i / HEATMAP_BINS),
+      from: logBoundary(i - 1, HEATMAP_BINS, safeMax),
+      to: logBoundary(i, HEATMAP_BINS, safeMax),
       color: lerpColor(neutral, positive, i / HEATMAP_BINS),
     });
   }
@@ -126,15 +137,25 @@ export default function Categories() {
   const [sort, setSort] = useState<{ key: SummarySortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const [hiddenCategories, setHiddenCategories] = useState<Set<number>>(new Set());
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
+  const [showSubcategories, setShowSubcategories] = useState(true);
+  const [sumSubIntoParent, setSumSubIntoParent] = useState(false);
 
   const load = () => api.get<Category[]>('/categories').then(setCategories).catch(() => {});
-  const loadSummary = () =>
-    api.get<CategorySummaryResponse>('/reports/category-summary').then(setSummary).catch(() => {});
+  const loadSummary = (rollup: boolean) =>
+    api
+      .get<CategorySummaryResponse>(`/reports/category-summary${rollup ? '?rollup=1' : ''}`)
+      .then(setSummary)
+      .catch(() => {});
 
   useEffect(() => {
     load();
-    loadSummary();
   }, []);
+
+  // Läd die Summary initial und immer wenn der Rollup-Filter umgeschaltet
+  // wird (Trend-Berechnung für aufsummierte Elternkategorien läuft im Backend).
+  useEffect(() => {
+    loadSummary(sumSubIntoParent);
+  }, [sumSubIntoParent]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -153,7 +174,7 @@ export default function Categories() {
       }
       cancelEdit();
       load();
-      loadSummary();
+      loadSummary(sumSubIntoParent);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
     }
@@ -191,7 +212,7 @@ export default function Categories() {
     await api.delete(`/categories/${id}`);
     if (editingId === id) cancelEdit();
     load();
-    loadSummary();
+    loadSummary(sumSubIntoParent);
   };
 
   const toggleSort = (key: SummarySortKey) => {
@@ -207,59 +228,86 @@ export default function Categories() {
     });
   };
 
-  const modeFilteredSummary = useMemo(
-    () => summary.categories.filter((c) => modeFilter === 'all' || c.mode === modeFilter),
-    [summary, modeFilter]
+  // "Subkategorien anzeigen" blendet Unterkategorien komplett aus Tabelle und
+  // Heatmap aus (statt sie nur einzeln über die Heatmap-Pills auszublenden).
+  const baseSummary = useMemo(
+    () => summary.categories.filter((c) => showSubcategories || c.parent_id == null),
+    [summary, showSubcategories]
   );
 
-  // Sortierung nach Name gruppiert Unterkategorien direkt unter ihrer
-  // Elternkategorie (statt sie alphabetisch mit allen anderen zu vermischen).
-  // Sortierung nach Beträgen/Trends bleibt rein numerisch wie bisher.
+  const modeFilteredSummary = useMemo(
+    () => baseSummary.filter((c) => modeFilter === 'all' || c.mode === modeFilter),
+    [baseSummary, modeFilter]
+  );
+
+  // Unterkategorien bleiben bei jeder Sortierung direkt unter ihrer
+  // Elternkategorie gruppiert; nur die Reihenfolge der Gruppen (und der
+  // Kinder innerhalb einer Gruppe) folgt der gewählten Spalte/Richtung.
   const sortedSummary = useMemo(() => {
     const dir = sort.dir === 'asc' ? 1 : -1;
-    const byName = (a: CategorySummaryRow, b: CategorySummaryRow) => a.name.localeCompare(b.name, 'de');
-    if (sort.key === 'name') {
-      const childrenByParent = new Map<number, CategorySummaryRow[]>();
-      const topLevel: CategorySummaryRow[] = [];
-      for (const row of modeFilteredSummary) {
-        if (row.parent_id != null) {
-          if (!childrenByParent.has(row.parent_id)) childrenByParent.set(row.parent_id, []);
-          childrenByParent.get(row.parent_id)!.push(row);
-        } else {
-          topLevel.push(row);
-        }
-      }
-      const ordered: CategorySummaryRow[] = [];
-      const emitted = new Set<number>();
-      for (const row of [...topLevel].sort((a, b) => dir * byName(a, b))) {
-        ordered.push(row);
-        emitted.add(row.category_id);
-        for (const child of (childrenByParent.get(row.category_id) ?? []).sort(byName)) {
-          ordered.push(child);
-          emitted.add(child.category_id);
-        }
-      }
-      // Kinder, deren Elternkategorie durch den Modus-Filter ausgeblendet
-      // ist, werden wie eigenständige Zeilen behandelt statt zu verschwinden.
-      const orphans = modeFilteredSummary
-        .filter((row) => !emitted.has(row.category_id))
-        .sort((a, b) => dir * byName(a, b));
-      return [...ordered, ...orphans];
-    }
-    return [...modeFilteredSummary].sort((a, b) => {
+    const compare = (a: CategorySummaryRow, b: CategorySummaryRow) => {
+      if (sort.key === 'name') return a.name.localeCompare(b.name, 'de');
       const av = a[sort.key];
       const bv = b[sort.key];
-      if (av < bv) return -dir;
-      if (av > bv) return dir;
+      if (av < bv) return -1;
+      if (av > bv) return 1;
       return 0;
-    });
+    };
+    const childrenByParent = new Map<number, CategorySummaryRow[]>();
+    const topLevel: CategorySummaryRow[] = [];
+    for (const row of modeFilteredSummary) {
+      if (row.parent_id != null) {
+        if (!childrenByParent.has(row.parent_id)) childrenByParent.set(row.parent_id, []);
+        childrenByParent.get(row.parent_id)!.push(row);
+      } else {
+        topLevel.push(row);
+      }
+    }
+    const ordered: CategorySummaryRow[] = [];
+    const emitted = new Set<number>();
+    for (const row of [...topLevel].sort((a, b) => dir * compare(a, b))) {
+      ordered.push(row);
+      emitted.add(row.category_id);
+      for (const child of (childrenByParent.get(row.category_id) ?? []).sort((a, b) => dir * compare(a, b))) {
+        ordered.push(child);
+        emitted.add(child.category_id);
+      }
+    }
+    // Kinder, deren Elternkategorie durch den Modus-Filter ausgeblendet
+    // ist, werden wie eigenständige Zeilen behandelt statt zu verschwinden.
+    const orphans = modeFilteredSummary
+      .filter((row) => !emitted.has(row.category_id))
+      .sort((a, b) => dir * compare(a, b));
+    return [...ordered, ...orphans];
   }, [modeFilteredSummary, sort]);
+
+  // Bei aktivem Rollup enthalten Top-Kategorien bereits die Beträge ihrer
+  // Unterkategorien; für die Summenzeile daher nur Top-Kategorien addieren,
+  // um keine Beträge doppelt zu zählen.
+  const totalsRow = useMemo(() => {
+    const rows = sumSubIntoParent ? modeFilteredSummary.filter((r) => r.parent_id == null) : modeFilteredSummary;
+    return rows.reduce(
+      (acc, r) => ({
+        total_year: acc.total_year + r.total_year,
+        total_prev_year_month: acc.total_prev_year_month + r.total_prev_year_month,
+        total_prev_month: acc.total_prev_month + r.total_prev_month,
+        total_month: acc.total_month + r.total_month,
+        avg_per_month: acc.avg_per_month + r.avg_per_month,
+      }),
+      { total_year: 0, total_prev_year_month: 0, total_prev_month: 0, total_month: 0, avg_per_month: 0 }
+    );
+  }, [modeFilteredSummary, sumSubIntoParent]);
 
   const groupedCategories = useMemo(() => groupCategoriesByParent(categories), [categories]);
 
+  const heatmapPillCategories = useMemo(
+    () => (showSubcategories ? groupedCategories : groupedCategories.filter((g) => g.depth === 0)),
+    [groupedCategories, showSubcategories]
+  );
+
   const visibleSummaryCategories = useMemo(
-    () => summary.categories.filter((c) => !hiddenCategories.has(c.category_id)),
-    [summary, hiddenCategories]
+    () => baseSummary.filter((c) => !hiddenCategories.has(c.category_id)),
+    [baseSummary, hiddenCategories]
   );
 
   const heatmapSeries = useMemo(
@@ -290,6 +338,11 @@ export default function Categories() {
     plotOptions: {
       heatmap: {
         useFillColorAsStroke: true,
+        // ApexCharts wendet auf Bin-Farben standardmäßig zusätzlich eine
+        // eigene Hell/Dunkel-Abstufung an (enableShades), die unsere fein
+        // abgestuften Bin-Farben stark verwäscht. Da die Bins selbst schon
+        // die gewünschte Abstufung liefern, deaktivieren wir das.
+        enableShades: false,
         colorScale: { ranges: buildHeatmapRanges(heatmapMaxAbs, theme) },
       },
     },
@@ -319,6 +372,22 @@ export default function Categories() {
             <option value="recurring">Nur wiederkehrend</option>
             <option value="one_time">Nur einmalig</option>
           </select>
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={showSubcategories}
+              onChange={(e) => setShowSubcategories(e.target.checked)}
+            />
+            Subkategorien anzeigen
+          </label>
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={sumSubIntoParent}
+              onChange={(e) => setSumSubIntoParent(e.target.checked)}
+            />
+            Subkategorien in Elternkategorien summieren
+          </label>
         </div>
         <div className={styles.mobileSort}>
           <select
@@ -383,18 +452,59 @@ export default function Categories() {
                   <td className={styles.amountRight} data-label="Betrag PM">{formatCurrency(row.total_prev_month)}</td>
                   <td className={styles.amountRight} data-label="Betrag MTD">{formatCurrency(row.total_month)}</td>
                   <td className={styles.amountRight} data-label="Ø Betrag/Monat">{formatCurrency(row.avg_per_month)}</td>
-                  <td className={styles.amountRight} data-label="6M Trend">
+                  <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="1M Trend">
+                    <TrendArrow pct={row.trend_1m_pct} />
+                  </td>
+                  <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="6M Trend">
                     <TrendArrow pct={row.trend_6m_pct} />
                   </td>
-                  <td className={styles.amountRight} data-label="12M Trend">
+                  <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="12M Trend">
                     <TrendArrow pct={row.trend_12m_pct} />
                   </td>
-                  <td className={styles.amountRight} data-label="24M Trend">
+                  <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="24M Trend">
                     <TrendArrow pct={row.trend_24m_pct} />
+                  </td>
+                  <td className={styles.trendGridCell}>
+                    <div className={styles.trendGrid}>
+                      <TrendSparklineTile label="1M" pct={row.trend_1m_pct} series={row.monthly.slice(-2)} />
+                      <TrendSparklineTile label="6M" pct={row.trend_6m_pct} series={row.monthly.slice(-6)} />
+                      <TrendSparklineTile label="12M" pct={row.trend_12m_pct} series={row.monthly} />
+                      <TrendSparklineTile label="24M" pct={row.trend_24m_pct} series={row.monthly24} />
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className={styles.totalsRow}>
+                <td className={styles.symbolCol}>&nbsp;</td>
+                <td data-label="Name">Gesamt</td>
+                <td className={styles.amountRight} data-label="Betrag YTD">{formatCurrency(totalsRow.total_year)}</td>
+                <td className={styles.amountRight} data-label="Betrag PYM">
+                  {formatCurrency(totalsRow.total_prev_year_month)}
+                </td>
+                <td className={styles.amountRight} data-label="Betrag PM">
+                  {formatCurrency(totalsRow.total_prev_month)}
+                </td>
+                <td className={styles.amountRight} data-label="Betrag MTD">{formatCurrency(totalsRow.total_month)}</td>
+                <td className={styles.amountRight} data-label="Ø Betrag/Monat">
+                  {formatCurrency(totalsRow.avg_per_month)}
+                </td>
+                <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="1M Trend">
+                  –
+                </td>
+                <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="6M Trend">
+                  –
+                </td>
+                <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="12M Trend">
+                  –
+                </td>
+                <td className={`${styles.amountRight} ${styles.trendCell}`} data-label="24M Trend">
+                  –
+                </td>
+                <td className={styles.trendGridCell}>–</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </section>
@@ -402,7 +512,7 @@ export default function Categories() {
       <section>
         <h3 className={styles.sectionTitle}>Kategorie × Monat (letzte 12 Monate)</h3>
         <div className={styles.filterRow}>
-          {groupedCategories.map(({ category: c }) => (
+          {heatmapPillCategories.map(({ category: c }) => (
             <button
               key={c.id}
               type="button"
