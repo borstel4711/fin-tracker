@@ -222,6 +222,17 @@ export interface ImportBatch {
   skipped: number;
 }
 
+export interface AnomalyTransaction {
+  id: number;
+  date: string;
+  amount: number;
+  counterparty: string | null;
+  purpose: string | null;
+  category_id: number;
+  categoryAvg: number;
+  ratio: number;
+}
+
 export interface MonthStatusResponse {
   month: string;
   currentBalance: number | null;

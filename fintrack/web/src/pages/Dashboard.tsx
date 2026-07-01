@@ -14,12 +14,15 @@ import type {
   CategoryMonthlyTotal,
   CompareResponse,
   MonthStatusResponse,
+  AnomalyTransaction,
+  Category,
   InflationHeadlinePoint,
   InflationBreakdownRow,
 } from '../types';
 import DateRangeFilter, { type DateRange } from '../components/DateRangeFilter';
 import TrendArrow from '../components/TrendArrow';
 import KpiTile from '../components/KpiTile';
+import CategoryBadge from '../components/CategoryBadge';
 import styles from './Dashboard.module.css';
 
 const FORECAST_WEEKS = 13;
@@ -74,6 +77,8 @@ export default function Dashboard() {
   const [byCategoryAllTime, setByCategoryAllTime] = useState<CategoryTotal[]>([]);
   const [compare, setCompare] = useState<CompareResponse | null>(null);
   const [monthStatus, setMonthStatus] = useState<MonthStatusResponse | null>(null);
+  const [anomalies, setAnomalies] = useState<AnomalyTransaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [inflationHeadline, setInflationHeadline] = useState<InflationHeadlinePoint[]>([]);
   const [inflationBreakdown, setInflationBreakdown] = useState<InflationBreakdownRow[]>([]);
   const [range, setRange] = useState<DateRange>({ from: '', to: '' });
@@ -109,6 +114,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.get<CategoryTotal[]>('/reports/by-category').then(setByCategoryAllTime).catch(() => {});
+    api.get<Category[]>('/categories').then(setCategories).catch(() => {});
+    api.get<AnomalyTransaction[]>('/reports/anomalies').then(setAnomalies).catch(() => {});
   }, []);
 
   // Eigener Effekt, unabhängig von range/dateField: eine YoY-Kennzahl braucht
@@ -194,6 +201,8 @@ export default function Dashboard() {
     () => padForecastSeries(forecastBaselineValues),
     [historyDates, lastBalance, forecastBaselineValues]
   );
+
+  const categoryById = useMemo(() => new Map(categories.map((cat) => [cat.id, cat])), [categories]);
 
   const palette = useMemo(() => chartPalette(theme), [theme]);
   const expensePivot = useMemo(() => pivotCategoryMonthly(expenseMonthly, palette), [expenseMonthly, palette]);
@@ -468,6 +477,48 @@ export default function Dashboard() {
             height="100%"
           />
         </div>
+      </section>
+
+      <section>
+        <h2 className={styles.sectionTitle}>Auffällige Buchungen</h2>
+        {anomalies.length === 0 ? (
+          <p className={styles.caption}>Keine Buchungen der letzten 12 Monate weichen auffällig vom Kategorie-Ø ab.</p>
+        ) : (
+          <div className={`cardFlush ${styles.tableWrap}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Kategorie</th>
+                  <th>Empfänger / Zweck</th>
+                  <th className={styles.amountRight}>Betrag</th>
+                  <th className={styles.amountRight}>Kategorie-Ø</th>
+                  <th className={styles.amountRight}>Abweichung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anomalies.slice(0, 15).map((a) => (
+                  <tr key={a.id}>
+                    <td data-label="Datum">{formatDate(a.date)}</td>
+                    <td data-label="Kategorie">
+                      <CategoryBadge category={categoryById.get(a.category_id)} />
+                    </td>
+                    <td className={styles.meta} data-label="Empfänger / Zweck">
+                      {a.counterparty || a.purpose || '–'}
+                    </td>
+                    <td className={styles.amountRight} data-label="Betrag">{formatCurrency(a.amount)}</td>
+                    <td className={styles.amountRight} data-label="Kategorie-Ø">{formatCurrency(a.categoryAvg)}</td>
+                    <td className={styles.amountRight} data-label="Abweichung">
+                      <a className="link" href={`#/transactions?q=${encodeURIComponent(a.counterparty ?? '')}`}>
+                        {a.ratio.toFixed(1)}× Ø
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <div className={styles.statsGrid}>

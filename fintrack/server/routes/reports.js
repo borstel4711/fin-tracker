@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { dateColumn, shiftMonth, lastNMonths, pctChange } = require('../lib/dates');
 const { computeExpectedRemaining, computeRemainingBudget } = require('../lib/monthStatus');
+const { findAnomalies } = require('../lib/anomalies');
 
 const router = express.Router();
 
@@ -375,6 +376,25 @@ router.get('/reports/month-status', (req, res) => {
     mtdExpense: Math.round((mtd.expense || 0) * 100) / 100,
     uncategorizedCount,
   });
+});
+
+// Buchungen, die deutlich über dem Kategorie-Ø liegen (siehe lib/anomalies.js).
+// Fenster standardmäßig 12 Monate, deckungsgleich mit avg_per_month, damit
+// "Ø" in der App überall dieselbe Zeitspanne meint.
+router.get('/reports/anomalies', (req, res) => {
+  const months = Number(req.query.months) || 12;
+  const threshold = Number(req.query.threshold) || 2;
+  const fromMonth = lastNMonths(months)[0];
+
+  const rows = db
+    .prepare(
+      `SELECT id, date, amount, counterparty, purpose, category_id
+       FROM transactions
+       WHERE category_id IS NOT NULL AND substr(date, 1, 7) >= ?`
+    )
+    .all(fromMonth);
+
+  res.json(findAnomalies(rows, { threshold }));
 });
 
 router.get('/reports/compare', (req, res) => {
