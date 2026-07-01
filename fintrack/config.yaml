@@ -1,5 +1,5 @@
 name: Finance Tracker
-version: "0.1.24"
+version: "0.1.25"
 slug: fintrack
 description: Einnahmen-/Ausgaben-Überwachung mit CSV-Import
 url: "https://github.com/borstel4711/fin-tracker"
