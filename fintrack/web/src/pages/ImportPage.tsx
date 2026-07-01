@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
-import type { ImportProfile, ImportResult } from '../types';
+import type { ImportBatch, ImportProfile, ImportResult } from '../types';
+import { formatDate } from '../utils/date';
 import Dialog from '../components/Dialog';
 import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
@@ -34,11 +35,14 @@ export default function ImportPage() {
   const [newProfile, setNewProfile] = useState<ProfileForm>(emptyProfile);
   const [showProfileForm, setShowProfileForm] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
+  const [batches, setBatches] = useState<ImportBatch[]>([]);
 
   const loadProfiles = () => api.get<ImportProfile[]>('/profiles').then(setProfiles).catch(() => {});
+  const loadBatches = () => api.get<ImportBatch[]>('/import/batches').then(setBatches).catch(() => {});
 
   useEffect(() => {
     loadProfiles();
+    loadBatches();
   }, []);
 
   const submitImport = async (e: FormEvent) => {
@@ -55,6 +59,7 @@ export default function ImportPage() {
     try {
       const res = await api.upload<ImportResult>('/import', formData);
       setResult(res);
+      loadBatches();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -104,6 +109,7 @@ export default function ImportPage() {
   };
 
   const removeProfile = async (id: number) => {
+    if (!window.confirm('Importprofil wirklich löschen?')) return;
     await api.delete(`/profiles/${id}`);
     if (editingProfileId === id) cancelProfileForm();
     loadProfiles();
@@ -301,6 +307,40 @@ export default function ImportPage() {
             </div>
           </form>
         </Dialog>
+      </section>
+
+      <section className={`card ${styles.section}`}>
+        <h2 className={styles.title}>Import-Historie</h2>
+        {batches.length === 0 ? (
+          <p className={styles.result}>Noch keine Importe.</p>
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Datei</th>
+                  <th>Profil</th>
+                  <th className={styles.amountRight}>Zeilen</th>
+                  <th className={styles.amountRight}>Neu</th>
+                  <th className={styles.amountRight}>Dubletten</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches.map((b) => (
+                  <tr key={b.id}>
+                    <td data-label="Datum">{formatDate(b.imported_at)}</td>
+                    <td data-label="Datei">{b.filename ?? '–'}</td>
+                    <td data-label="Profil">{b.profile_name ?? '–'}</td>
+                    <td className={styles.amountRight} data-label="Zeilen">{b.row_count}</td>
+                    <td className={styles.amountRight} data-label="Neu">{b.inserted}</td>
+                    <td className={styles.amountRight} data-label="Dubletten">{b.skipped}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

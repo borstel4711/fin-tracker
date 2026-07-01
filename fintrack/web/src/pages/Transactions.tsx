@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api';
 import type { Category, Loan, Transaction } from '../types';
 import { formatDate } from '../utils/date';
+import { formatCurrency } from '../utils/currency';
 import { groupCategoriesByParent } from '../utils/categoryTree';
 import CategoryBadge from '../components/CategoryBadge';
 import DateRangeFilter from '../components/DateRangeFilter';
@@ -440,7 +441,7 @@ export default function Transactions() {
                   className={`${styles.amountRight} ${tx.amount < 0 ? styles.negative : styles.positive}`}
                   data-label="Betrag"
                 >
-                  {tx.amount.toFixed(2)} €
+                  {formatCurrency(tx.amount)}
                 </td>
                 <td data-label="Kategorie">
                   {editingRowId === tx.id ? (

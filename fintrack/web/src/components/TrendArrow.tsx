@@ -1,5 +1,5 @@
 import MdiIcon from './MdiIcon';
-import { trendDirection, TREND_VARIANT, type TrendDirection } from '../utils/trend';
+import { trendDirection, trendVariant, type TrendDirection } from '../utils/trend';
 import styles from './TrendArrow.module.css';
 
 const TREND_ICON: Record<TrendDirection, string> = {
@@ -8,11 +8,11 @@ const TREND_ICON: Record<TrendDirection, string> = {
   flat: 'trending-neutral',
 };
 
-export default function TrendArrow({ pct }: { pct: number }) {
+export default function TrendArrow({ pct, positiveIsGood = false }: { pct: number; positiveIsGood?: boolean }) {
   const direction = trendDirection(pct);
   return (
     <span className={styles.trendArrow}>
-      <MdiIcon name={TREND_ICON[direction]} variant={TREND_VARIANT[direction]} size={16} />
+      <MdiIcon name={TREND_ICON[direction]} variant={trendVariant(direction, positiveIsGood)} size={16} />
       {pct > 0 ? '+' : ''}
       {pct.toFixed(1)} %
     </span>

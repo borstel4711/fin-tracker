@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { AppSettings, BalanceSeriesResponse, Category, CategorySummaryResponse, Investment } from '../types';
 import { formatCurrency } from '../utils/currency';
-import { formatMonth } from '../utils/date';
+import { formatMonth, currentMonth, shiftMonth } from '../utils/date';
 import Dialog from '../components/Dialog';
 import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
@@ -15,17 +15,6 @@ interface InvestmentPlanItem extends Investment {
   targetMonth: string | null;
   availableNow: number;
   cumulativeAmount: number;
-}
-
-function currentMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function shiftMonth(month: string, delta: number): string {
-  const [y, m] = month.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function computeInvestmentPlan(
@@ -130,6 +119,7 @@ export default function Investments() {
   };
 
   const remove = async (id: number) => {
+    if (!window.confirm('Investition wirklich löschen?')) return;
     await api.delete(`/investments/${id}`);
     if (editingId === id) cancelEdit();
     load();

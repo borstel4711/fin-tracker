@@ -98,6 +98,17 @@ test('normalizeRow: getrennte Soll/Haben-Spalten -> Vorzeichen', () => {
   assert.equal(creditRow.type, 'in');
 });
 
+test('normalizeRow: Soll und Haben beide leer -> null (Zeile verworfen)', () => {
+  const profile = {
+    col_date: 'Datum',
+    date_format: 'DD.MM.YYYY',
+    decimal_comma: 1,
+    col_debit: 'Soll',
+    col_credit: 'Haben',
+  };
+  assert.equal(normalizeRow({ Datum: '01.01.2024', Soll: '', Haben: '' }, profile), null);
+});
+
 test('normalizeRow: ungültiges Datum oder Betrag -> null (Zeile verworfen)', () => {
   const profile = { col_date: 'd', date_format: 'DD.MM.YYYY', decimal_comma: 1, col_amount: 'a' };
   assert.equal(normalizeRow({ d: 'xx', a: '10,00' }, profile), null);

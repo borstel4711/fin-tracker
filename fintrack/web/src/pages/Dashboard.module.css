@@ -4,6 +4,12 @@
   gap: 32px;
 }
 
+.kpiRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
 .filterPane {
   display: flex;
   flex-direction: column;
@@ -103,10 +109,6 @@
 
 .compareLabel {
   color: var(--text-muted);
-}
-
-.footerLink {
-  font-size: 13px;
 }
 
 .caption {

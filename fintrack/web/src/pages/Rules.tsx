@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { Category, Rule } from '../types';
 import { groupCategoriesByParent } from '../utils/categoryTree';
+import CategoryBadge from '../components/CategoryBadge';
 import Dialog from '../components/Dialog';
 import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
@@ -21,6 +22,7 @@ export default function Rules() {
   const [form, setForm] = useState(emptyRule);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [recategorizeResult, setRecategorizeResult] = useState('');
 
   const load = () => api.get<Rule[]>('/rules').then(setRules).catch(() => {});
   useEffect(() => {
@@ -67,13 +69,17 @@ export default function Rules() {
   };
 
   const remove = async (id: number) => {
+    if (!window.confirm('Regel wirklich löschen?')) return;
     await api.delete(`/rules/${id}`);
     load();
   };
 
   const recategorize = async () => {
-    const res = await api.post<{ updated: number }>('/recategorize', {});
-    alert(`${res.updated} Buchungen neu kategorisiert.`);
+    setRecategorizeResult('');
+    const res = await api.post<{ updated: number; cleared: number }>('/recategorize', {});
+    setRecategorizeResult(
+      `${res.updated} Buchung(en) neu kategorisiert, ${res.cleared} veraltete Zuordnung(en) entfernt.`
+    );
   };
 
   return (
@@ -160,11 +166,17 @@ export default function Rules() {
         </form>
       </Dialog>
 
+      {recategorizeResult && <p className={styles.result}>{recategorizeResult}</p>}
+
       <ul className={`cardFlush ${styles.list}`}>
         {rules.map((r) => (
           <li key={r.id} className={styles.listItem}>
-            <span>
-              [{r.priority}] {r.match_field} {r.match_type} „{r.pattern}" → Kategorie #{r.category_id}
+            <span className={styles.ruleLine}>
+              [{r.priority}] {r.match_field} {r.match_type} „{r.pattern}" →{' '}
+              <CategoryBadge
+                category={categories.find((c) => c.id === r.category_id) ?? null}
+                fallback={`Kategorie #${r.category_id}`}
+              />
             </span>
             <span className={styles.actions}>
               <button className="iconButton" title="Bearbeiten" aria-label="Bearbeiten" onClick={() => startEdit(r)}>

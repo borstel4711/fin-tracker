@@ -95,6 +95,12 @@ router.get('/balance/series', (req, res) => {
   // schlagen nicht dauerhaft auf spätere Diffs durch.
   let prevAnchor = start;
   const checkpoints = checkpointAnchors.map((a) => {
+    // Anker vor dem Start-Anker liegen außerhalb der Rechengrundlage
+    // (Buchungen zählen erst ab Start-Datum) — dort ist kein sinnvoller
+    // Soll/Ist-Vergleich möglich.
+    if (a.date < start.date) {
+      return { ...a, computed: null, diff: null };
+    }
     const sinceLastAnchor = transactions
       .filter((tx) => tx.date > prevAnchor.date && tx.date <= a.date)
       .reduce((sum, tx) => sum + tx.amount, 0);

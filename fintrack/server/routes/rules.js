@@ -57,18 +57,21 @@ router.post('/recategorize', (req, res) => {
   const rows = db.prepare('SELECT * FROM transactions').all();
   const update = db.prepare('UPDATE transactions SET category_id = ?, category_src = ? WHERE id = ?');
   let updated = 0;
+  let cleared = 0;
   const run = db.transaction(() => {
     for (const tx of rows) {
       if (tx.category_src === 'manual') continue;
       const { category_id, category_src } = categorize(tx);
-      if (category_id != null) {
-        update.run(category_id, category_src, tx.id);
-        updated += 1;
-      }
+      if (category_id === tx.category_id && category_src === tx.category_src) continue;
+      update.run(category_id, category_src, tx.id);
+      // Kein Treffer mehr (z. B. Regel gelöscht) => veraltete Zuordnung
+      // entfernen, statt sie stillschweigend stehen zu lassen.
+      if (category_id != null) updated += 1;
+      else cleared += 1;
     }
   });
   run();
-  res.json({ updated });
+  res.json({ updated, cleared });
 });
 
 module.exports = router;

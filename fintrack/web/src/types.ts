@@ -80,8 +80,9 @@ export interface BalanceAnchor {
 }
 
 export interface Checkpoint extends BalanceAnchor {
-  computed: number;
-  diff: number;
+  // null, wenn der Anker vor dem Start-Anker liegt (kein Soll/Ist-Vergleich möglich)
+  computed: number | null;
+  diff: number | null;
 }
 
 export interface BalanceSeriesResponse {
@@ -208,6 +209,29 @@ export interface ImportResult {
   inserted: number;
   skipped: number;
   value_date_filled: number;
+}
+
+export interface ImportBatch {
+  id: number;
+  profile_id: number | null;
+  profile_name: string | null;
+  filename: string | null;
+  imported_at: string;
+  row_count: number;
+  inserted: number;
+  skipped: number;
+}
+
+export interface MonthStatusResponse {
+  month: string;
+  currentBalance: number | null;
+  buffer: number;
+  expectedRemainingIncome: number;
+  expectedRemainingExpense: number;
+  remainingBudget: number | null;
+  mtdIncome: number;
+  mtdExpense: number;
+  uncategorizedCount: number;
 }
 
 export interface CategorySummaryRow {
