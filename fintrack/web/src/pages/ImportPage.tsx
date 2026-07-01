@@ -143,6 +143,14 @@ export default function ImportPage() {
             {result.inserted} neu, {result.skipped} Dubletten übersprungen
             {result.value_date_filled > 0 && `, ${result.value_date_filled} Wertstellung(en) nachgetragen`} (von{' '}
             {result.row_count} Zeilen).
+            {result.csv_checkpoint && (
+              <>
+                {' '}
+                Checkpoint am {formatDate(result.csv_checkpoint.date)}{' '}
+                {result.csv_checkpoint.created ? 'angelegt' : 'aktualisiert'} (Saldo laut CSV:{' '}
+                {result.csv_checkpoint.balance.toFixed(2)} €).
+              </>
+            )}
           </p>
         )}
       </section>

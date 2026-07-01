@@ -203,12 +203,19 @@ export interface InflationBreakdownRow {
   officialRateYoy: number | null;
 }
 
+export interface CsvCheckpoint {
+  date: string;
+  balance: number;
+  created: boolean;
+}
+
 export interface ImportResult {
   batch_id: number;
   row_count: number;
   inserted: number;
   skipped: number;
   value_date_filled: number;
+  csv_checkpoint: CsvCheckpoint | null;
 }
 
 export interface ImportBatch {
@@ -220,6 +227,35 @@ export interface ImportBatch {
   row_count: number;
   inserted: number;
   skipped: number;
+}
+
+export interface SavingsRatePoint {
+  month: string;
+  income: number;
+  expense: number;
+  net: number;
+  rate: number | null;
+  rate3m: number | null;
+  rate6m: number | null;
+}
+
+export interface TopTransaction {
+  id: number;
+  date: string;
+  amount: number;
+  counterparty: string | null;
+  purpose: string | null;
+  category_id: number | null;
+}
+
+export interface RecurringPayment {
+  counterparty: string | null;
+  amount: number;
+  occurrences: number;
+  firstDate: string;
+  lastDate: string;
+  avgIntervalDays: number;
+  category_id: number | null;
 }
 
 export interface AnomalyTransaction {

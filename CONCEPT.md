@@ -77,17 +77,23 @@ CREATE TABLE rules (
 );
 
 CREATE TABLE transactions (
-  id            INTEGER PRIMARY KEY,
-  date          TEXT NOT NULL,          -- ISO YYYY-MM-DD
-  amount        REAL NOT NULL,          -- + Einnahme, - Ausgabe
-  type          TEXT NOT NULL,          -- in | out
-  counterparty  TEXT,
-  purpose       TEXT,
-  category_id   INTEGER REFERENCES categories(id),
-  category_src  TEXT,                   -- rule | learned | manual | llm | null
-  source_file   TEXT,
-  import_batch  INTEGER REFERENCES import_batches(id),
-  hash          TEXT NOT NULL UNIQUE    -- Dedup: date|amount|counterparty|purpose
+  id                 INTEGER PRIMARY KEY,
+  date               TEXT NOT NULL,          -- ISO YYYY-MM-DD (Buchungsdatum)
+  value_date         TEXT,                   -- ISO YYYY-MM-DD (Wertstellung, optional)
+  amount             REAL NOT NULL,          -- + Einnahme, - Ausgabe
+  type               TEXT NOT NULL,          -- in | out
+  counterparty       TEXT,
+  purpose            TEXT,
+  category_id        INTEGER REFERENCES categories(id),
+  category_src       TEXT,                   -- rule | learned | manual | llm | null
+  source_file        TEXT,
+  import_batch       INTEGER REFERENCES import_batches(id),
+  loan_id            INTEGER REFERENCES loans(id),
+  loan_payment_type  TEXT,                   -- rate | sondertilgung
+  hash               TEXT NOT NULL UNIQUE    -- Dedup: date|amount|counterparty|purpose
+                                              -- (bei mehreren identischen Buchungen am
+                                              -- selben Tag ab der zweiten mit "#1",
+                                              -- "#2", ... Suffix, siehe §3)
 );
 
 CREATE TABLE import_batches (
@@ -108,7 +114,10 @@ CREATE TABLE learned_map (
   hits          INTEGER NOT NULL DEFAULT 1
 );
 
--- Saldo-Anker: Startsaldo + spätere Stützpunkte
+-- Saldo-Anker: Startsaldo + spätere Stützpunkte. source='csv' wird
+-- automatisch aus der Saldo-Spalte eines Imports gepflegt (siehe §3);
+-- ein manuell gesetzter Anker (source='manual') am selben Datum hat
+-- Vorrang und wird nie überschrieben.
 CREATE TABLE balance_anchors (
   id      INTEGER PRIMARY KEY,
   date    TEXT NOT NULL,                -- ISO YYYY-MM-DD
@@ -117,6 +126,11 @@ CREATE TABLE balance_anchors (
   source  TEXT NOT NULL DEFAULT 'manual',     -- manual | csv
   note    TEXT
 );
+
+-- Settings, Investitionen und Darlehen sind eigenständige Ausbaustufen
+-- (siehe §5/§6) und hier nur der Vollständigkeit halber erwähnt:
+-- settings (buffer), investments (name, amount, priority),
+-- loans (principal_amount, interest_rate_annual, monthly_payment, ...).
 ```
 
 ### Saldo-Logik (zentral)
@@ -143,9 +157,18 @@ CREATE TABLE balance_anchors (
    - Datum `DD.MM.YYYY` → ISO `YYYY-MM-DD`
    - Betrag `1.234,56` → `1234.56`; Soll/Haben → Vorzeichen
    - `type` aus Vorzeichen ableiten
-6. **Hash** bilden (`date|amount|counterparty|purpose`), Dedup gegen DB.
+6. **Hash** bilden (`date|amount|counterparty|purpose`), Dedup gegen DB. Mehrere
+   Buchungen mit identischer Kombination *innerhalb derselben Datei* (z. B.
+   zwei gleich hohe Bargeldabhebungen am selben Tag) bekommen ab der zweiten
+   einen `#1`, `#2`, … Suffix, damit sie sich nicht gegenseitig als Dublette
+   verwerfen — ein erneuter Import derselben Datei reproduziert dieselbe
+   Reihenfolge und bleibt damit idempotent.
 7. **Kategorisieren** (siehe §4) für neue Zeilen.
 8. **Insert** + `import_batch`-Protokoll (inserted/skipped).
+9. **CSV-Checkpoint**: falls das Profil eine Saldo-Spalte (`col_balance`)
+   mitbringt, wird aus der Zeile mit dem spätesten Datum automatisch ein
+   `balance_anchors`-Eintrag mit `source='csv'` angelegt bzw. aktualisiert —
+   der eingebaute Soll/Ist-Abgleich ganz ohne manuellen Zusatzschritt.
 
 Idempotent: dieselbe oder überlappende CSV mehrfach einlesen erzeugt keine
 Dubletten.
@@ -176,45 +199,74 @@ und setzt `category_src = manual`.
 
 **MVP**
 - Monatsbilanz: Einnahmen / Ausgaben / Netto je Monat (Balken + Netto-Linie)
-- Kontostandsverlauf (berechnet) als Linie, mit Soll/Ist-Markern an Checkpoints
-- Ausgaben nach Kategorie (Donut für Monat, Balken im Zeitverlauf)
+- Sparquote je Monat (Netto/Einnahmen), gleitender 3-/6-Monats-Schnitt
+- Kontostandsverlauf (berechnet) als Linie, mit Soll/Ist-Markern an
+  Checkpoints, plus linearer Forecast (Gesamt- und Baseline-Rate)
+- Restbudget im laufenden Monat: Kontostand + erwartete restliche
+  wiederkehrende Einnahmen − erwartete restliche wiederkehrende Ausgaben −
+  Puffer (KPI-Kachel im Dashboard, `/api/reports/month-status`)
+- Ausgaben nach Kategorie (Donut für Monat, Balken im Zeitverlauf), netto
+  je Kategorie verrechnet (Erstattungen mindern die Ausgabe)
+- Kategorie-Übersichtstabelle mit Trends (1/6/12/24 Monate) und
+  Kategorie-Heatmap (Kategorie × Monat)
 - Monatsvergleich: Monat vs. Vormonat / Vorjahresmonat
+- Größte Einzelbuchungen (Top-N) im gewählten Zeitraum
+- Erkannte Abos/Daueraufträge (gleicher Empfänger + Betrag, monatlicher
+  Abstand, mind. 3 Vorkommen)
+- Anomalien: Buchungen, die deutlich über dem Kategorie-Ø liegen
 - „Nicht kategorisiert"-Liste als Arbeitsvorrat
+- Darlehen: Tilgungsplan, Zins-/Tilgungsverlauf, Sondertilgungs-Ersparnis
+- Investitionsplanung: leistbare Investitionen anhand Kontostand, Puffer
+  und Ø wiederkehrendem Cashflow
+- Persönliche vs. offizielle Inflation (Eurostat HICP) nach COICOP-Gruppe
 
 **Ausbau (später)**
-- Sparquote je Monat, gleitender 3-/6-Monats-Schnitt
-- Kategorie-Heatmap (Kategorie × Monat)
-- Top-N Einzelbuchungen, Kategorie-Drilldown
-- Abo-/Daueraufträge erkennen (regelmäßiger Empfänger + Betrag)
-- Einfacher Monatsend-Forecast
-- Anomalien (Buchung ≫ Kategorie-Schnitt)
+- Kategorie-Drilldown
+- Optionaler LLM-Fallback für die Kategorisierung (siehe §4)
+- Einheitliche Lade-/Fehlerzustände in der UI (aktuell scheitern Requests
+  clientseitig still)
 
 ---
 
-## 6. REST-API (Skizze)
+## 6. REST-API
 
 ```
 GET  /api/health
 # Transaktionen
-GET  /api/transactions?from&to&category&uncategorized
-PATCH /api/transactions/:id        { category_id }   -> schreibt learned_map
+GET   /api/transactions?from&to&category&uncategorized&q&loan&unassigned_loan
+POST  /api/transactions              { date, amount, ... }
+PATCH /api/transactions/:id          { category_id, loan_id, ... } -> schreibt learned_map
+DELETE /api/transactions/:id
 # Import
-POST /api/import                    multipart CSV + profile_id
+POST /api/import                     multipart CSV + profile_id -> legt ggf. CSV-Checkpoint an
 GET  /api/import/batches
+GET/POST/PATCH/DELETE /api/profiles  # Importprofile
 # Kategorien & Regeln
 GET/POST/PATCH/DELETE /api/categories
 GET/POST/PATCH/DELETE /api/rules
-POST /api/recategorize              # Regeln neu auf alle anwenden
+POST /api/recategorize               # Regeln+Gelerntes neu anwenden, räumt veraltete Treffer ab
 # Saldo
-GET  /api/balance/anchors
-POST /api/balance/anchors           { date, balance, type }
-GET  /api/balance/series?from&to    # berechneter Verlauf + Checkpoint-Diffs
+GET/POST /api/balance/anchors
+PATCH/DELETE /api/balance/anchors/:id
+GET  /api/balance/series?from&to&field   # berechneter Verlauf + Checkpoint-Diffs + Forecast
 # Auswertungen
-GET  /api/reports/monthly?from&to
-GET  /api/reports/by-category?from&to
-GET  /api/reports/by-category-monthly?type&from&to
-GET  /api/reports/compare?month
-GET  /api/reports/category-summary   # Summen/Trends/Monatsraster je Kategorie
+GET  /api/reports/monthly?from&to&field
+GET  /api/reports/savings-rate?from&to&field
+GET  /api/reports/by-category?from&to&field
+GET  /api/reports/by-category-monthly?type&from&to&field
+GET  /api/reports/compare?month&field
+GET  /api/reports/category-summary?rollup&field   # Summen/Trends/Monatsraster je Kategorie
+GET  /api/reports/month-status                    # Restbudget-KPI für den laufenden Monat
+GET  /api/reports/top-transactions?type&from&to&field&limit
+GET  /api/reports/subscriptions?months            # erkannte Abos/Daueraufträge
+GET  /api/reports/anomalies?months&threshold
+# Sonstiges
+GET/PUT  /api/settings                # aktuell nur { buffer }
+GET/POST/PATCH/DELETE /api/investments
+GET/POST/PATCH/DELETE /api/loans      # inkl. GET /api/loans/:id mit Tilgungsplan/Prognose
+GET  /api/inflation/headline?months
+GET  /api/inflation/breakdown
+GET  /api/inflation/meta
 ```
 
 ---

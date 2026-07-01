@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { dateColumn } = require('../lib/dates');
 
 const router = express.Router();
 
@@ -55,7 +56,7 @@ router.delete('/balance/anchors/:id', (req, res) => {
 });
 
 router.get('/balance/series', (req, res) => {
-  const { from, to } = req.query;
+  const { from, to, field } = req.query;
   const start = db
     .prepare("SELECT * FROM balance_anchors WHERE type = 'start' ORDER BY date ASC LIMIT 1")
     .get();
@@ -63,13 +64,18 @@ router.get('/balance/series', (req, res) => {
     return res.json({ start: null, series: [], checkpoints: [], forecastRates: { total: 0, recurring: 0 } });
   }
 
+  // field=value_date lässt den Verlauf nach Wertstellung statt Buchungsdatum
+  // fortschreiben (wann das Geld tatsächlich verfügbar war). Die Spalte wird
+  // per SQL-Alias auf "date" gemappt, damit die restliche Logik unten
+  // (Checkpoint-Vergleich, Forecast) unverändert bleibt.
+  const dateCol = dateColumn(field, 't');
   const transactions = db
     .prepare(
-      `SELECT t.date, t.amount, c.mode AS category_mode
+      `SELECT ${dateCol} AS date, t.amount, c.mode AS category_mode
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
-       WHERE t.date >= ?
-       ORDER BY t.date ASC`
+       WHERE ${dateCol} >= ?
+       ORDER BY ${dateCol} ASC`
     )
     .all(start.date);
 

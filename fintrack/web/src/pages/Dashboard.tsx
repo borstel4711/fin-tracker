@@ -15,6 +15,9 @@ import type {
   CompareResponse,
   MonthStatusResponse,
   AnomalyTransaction,
+  SavingsRatePoint,
+  TopTransaction,
+  RecurringPayment,
   Category,
   InflationHeadlinePoint,
   InflationBreakdownRow,
@@ -78,6 +81,9 @@ export default function Dashboard() {
   const [compare, setCompare] = useState<CompareResponse | null>(null);
   const [monthStatus, setMonthStatus] = useState<MonthStatusResponse | null>(null);
   const [anomalies, setAnomalies] = useState<AnomalyTransaction[]>([]);
+  const [savingsRate, setSavingsRate] = useState<SavingsRatePoint[]>([]);
+  const [topExpenses, setTopExpenses] = useState<TopTransaction[]>([]);
+  const [subscriptions, setSubscriptions] = useState<RecurringPayment[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [inflationHeadline, setInflationHeadline] = useState<InflationHeadlinePoint[]>([]);
   const [inflationBreakdown, setInflationBreakdown] = useState<InflationBreakdownRow[]>([]);
@@ -101,14 +107,16 @@ export default function Dashboard() {
       .then(setIncomeMonthly)
       .catch(() => {});
     api.get<CategoryTotal[]>(`/reports/by-category?${qs}`).then(setByCategory).catch(() => {});
-    // Kontostandsverlauf respektiert denselben Zeitraumfilter wie die übrigen
-    // Charts; ein Wertstellungs-Feld unterstützt der Endpoint nicht.
-    const balanceParams = new URLSearchParams();
-    if (range.from) balanceParams.set('from', range.from);
-    if (range.to) balanceParams.set('to', range.to);
+    // Kontostandsverlauf respektiert denselben Zeitraum- und Datumsfeld-Filter
+    // wie die übrigen Charts.
     api
-      .get<BalanceSeriesResponse>(`/balance/series?${balanceParams.toString()}`)
+      .get<BalanceSeriesResponse>(`/balance/series?${qs}`)
       .then(setBalanceSeries)
+      .catch(() => {});
+    api.get<SavingsRatePoint[]>(`/reports/savings-rate?${qs}`).then(setSavingsRate).catch(() => {});
+    api
+      .get<TopTransaction[]>(`/reports/top-transactions?type=expense&limit=10&${qs}`)
+      .then(setTopExpenses)
       .catch(() => {});
   }, [range, dateField]);
 
@@ -116,6 +124,7 @@ export default function Dashboard() {
     api.get<CategoryTotal[]>('/reports/by-category').then(setByCategoryAllTime).catch(() => {});
     api.get<Category[]>('/categories').then(setCategories).catch(() => {});
     api.get<AnomalyTransaction[]>('/reports/anomalies').then(setAnomalies).catch(() => {});
+    api.get<RecurringPayment[]>('/reports/subscriptions').then(setSubscriptions).catch(() => {});
   }, []);
 
   // Eigener Effekt, unabhängig von range/dateField: eine YoY-Kennzahl braucht
@@ -225,6 +234,23 @@ export default function Dashboard() {
     { name: 'Einnahmen', type: 'column', data: monthly.map((m) => m.income) },
     { name: 'Ausgaben', type: 'column', data: monthly.map((m) => m.expense) },
     { name: 'Netto', type: 'line', data: monthly.map((m) => m.net) },
+  ];
+
+  const savingsRateOptions: ApexOptions = {
+    ...baseOptions,
+    chart: { ...baseOptions.chart, id: 'savings-rate' },
+    xaxis: { categories: savingsRate.map((p) => p.month) },
+    yaxis: { labels: { formatter: (val: number) => `${val.toFixed(0)} %` } },
+    tooltip: { ...baseOptions.tooltip, y: { formatter: (val: number) => `${val.toFixed(1)} %` } },
+    colors: [c.accent2, c.muted, c.accent],
+    stroke: { width: [2, 2, 1], dashArray: [0, 0, 4], curve: 'smooth' },
+    dataLabels: { enabled: false },
+    legend: { labels: { colors: foreColor } },
+  };
+  const savingsRateSeries = [
+    { name: 'Sparquote', type: 'line', data: savingsRate.map((p) => p.rate) },
+    { name: 'Ø 3 Monate', type: 'line', data: savingsRate.map((p) => p.rate3m) },
+    { name: 'Ø 6 Monate', type: 'line', data: savingsRate.map((p) => p.rate6m) },
   ];
 
   const balanceOptions: ApexOptions = {
@@ -395,6 +421,14 @@ export default function Dashboard() {
       </section>
 
       <section>
+        <h2 className={styles.sectionTitle}>Sparquote</h2>
+        <div className={`card ${styles.chartCard}`}>
+          <Chart options={savingsRateOptions} series={savingsRateSeries} type="line" height="100%" />
+        </div>
+        <p className={styles.caption}>Netto geteilt durch Einnahmen je Monat, plus gleitender 3-/6-Monats-Schnitt.</p>
+      </section>
+
+      <section>
         <h2 className={styles.sectionTitle}>Kontostandsverlauf</h2>
         <div className={`card ${styles.chartCard}`}>
           <Chart options={balanceOptions} series={balanceChartSeries} type="line" height="100%" />
@@ -477,6 +511,86 @@ export default function Dashboard() {
             height="100%"
           />
         </div>
+      </section>
+
+      <section>
+        <h2 className={styles.sectionTitle}>Erkannte Abos &amp; Daueraufträge</h2>
+        {subscriptions.length === 0 ? (
+          <p className={styles.caption}>
+            Keine wiederkehrenden Zahlungen erkannt (mind. 3× mit gleichem Betrag, monatlicher Abstand).
+          </p>
+        ) : (
+          <div className={`cardFlush ${styles.tableWrap}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Empfänger</th>
+                  <th>Kategorie</th>
+                  <th className={styles.amountRight}>Betrag / Monat</th>
+                  <th className={styles.amountRight}>Vorkommen</th>
+                  <th>Zeitraum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscriptions.map((s) => (
+                  <tr key={`${s.counterparty}-${s.amount}`}>
+                    <td data-label="Empfänger">
+                      <a className="link" href={`#/transactions?q=${encodeURIComponent(s.counterparty ?? '')}`}>
+                        {s.counterparty || '–'}
+                      </a>
+                    </td>
+                    <td data-label="Kategorie">
+                      <CategoryBadge category={s.category_id != null ? categoryById.get(s.category_id) : null} />
+                    </td>
+                    <td className={styles.amountRight} data-label="Betrag / Monat">{formatCurrency(s.amount)}</td>
+                    <td className={styles.amountRight} data-label="Vorkommen">{s.occurrences}×</td>
+                    <td className={styles.meta} data-label="Zeitraum">
+                      {formatDate(s.firstDate)} – {formatDate(s.lastDate)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className={styles.sectionTitle}>Größte Ausgaben</h2>
+        {topExpenses.length === 0 ? (
+          <p className={styles.caption}>Keine Ausgaben im gewählten Zeitraum.</p>
+        ) : (
+          <div className={`cardFlush ${styles.tableWrap}`}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Datum</th>
+                  <th>Kategorie</th>
+                  <th>Empfänger / Zweck</th>
+                  <th className={styles.amountRight}>Betrag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topExpenses.map((t) => (
+                  <tr key={t.id}>
+                    <td data-label="Datum">{formatDate(t.date)}</td>
+                    <td data-label="Kategorie">
+                      <CategoryBadge category={t.category_id != null ? categoryById.get(t.category_id) : null} />
+                    </td>
+                    <td className={styles.meta} data-label="Empfänger / Zweck">
+                      {t.counterparty || t.purpose || '–'}
+                    </td>
+                    <td className={styles.amountRight} data-label="Betrag">
+                      <a className="link" href={`#/transactions?q=${encodeURIComponent(t.counterparty ?? '')}`}>
+                        {formatCurrency(t.amount)}
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section>

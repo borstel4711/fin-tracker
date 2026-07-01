@@ -1,5 +1,5 @@
 const Papa = require('papaparse');
-const { normalizeRow } = require('./normalize');
+const { normalizeRow, dedupeSameDayHashes } = require('./normalize');
 
 function decodeBuffer(buffer, encoding) {
   const enc = encoding === 'utf8' ? 'utf8' : 'latin1';
@@ -28,7 +28,7 @@ function normalizeRows(rawRows, profile) {
     const normalized = normalizeRow(raw, profile);
     if (normalized) rows.push(normalized);
   }
-  return rows;
+  return dedupeSameDayHashes(rows);
 }
 
 module.exports = { parseCsv, normalizeRows };

@@ -264,6 +264,7 @@ export default function Balance() {
                   <td data-label="Datum">{formatDate(a.date)}</td>
                   <td data-label="Typ">
                     {TYPE_LABELS[a.type]}
+                    {a.source === 'csv' && <span className={styles.sourceBadge}>CSV</span>}
                     {a.note && <div className={styles.subLabel}>{a.note}</div>}
                   </td>
                   <td className={styles.amountRight} data-label="Erfasst">{formatCurrency(a.balance)}</td>
