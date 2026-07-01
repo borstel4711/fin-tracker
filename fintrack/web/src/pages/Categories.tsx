@@ -4,12 +4,15 @@ import type { ApexOptions } from 'apexcharts';
 import { api } from '../api';
 import { useTheme } from '../ThemeContext';
 import { chartTheme } from '../utils/chartTheme';
-import { COICOP_CODES, type Category, type CategorySummaryResponse } from '../types';
+import { COICOP_CODES, type Category, type CategorySummaryResponse, type CategorySummaryRow } from '../types';
 import MdiIcon from '../components/MdiIcon';
 import CategoryBadge from '../components/CategoryBadge';
 import TrendArrow from '../components/TrendArrow';
+import Dialog from '../components/Dialog';
+import FormField from '../components/FormField';
 import { formatCurrency } from '../utils/currency';
 import { formatMonth } from '../utils/date';
+import { groupCategoriesByParent } from '../utils/categoryTree';
 import styles from './Categories.module.css';
 
 const MODES: Category['mode'][] = ['recurring', 'one_time'];
@@ -38,6 +41,7 @@ const COICOP_LABELS: Record<string, string> = {
 
 const emptyForm = {
   name: '',
+  parent_id: '',
   color: '#2563eb',
   icon: '',
   mode: 'recurring' as Category['mode'],
@@ -49,6 +53,7 @@ type SummarySortKey =
   | 'name'
   | 'total_year'
   | 'total_prev_year_month'
+  | 'total_prev_month'
   | 'total_month'
   | 'avg_per_month'
   | 'trend_6m_pct'
@@ -61,6 +66,7 @@ const SUMMARY_COLUMNS: { key: SummarySortKey; label: string; amountRight?: boole
   { key: 'name', label: 'Name' },
   { key: 'total_year', label: 'Betrag YTD', amountRight: true },
   { key: 'total_prev_year_month', label: 'Betrag PYM', amountRight: true },
+  { key: 'total_prev_month', label: 'Betrag PM', amountRight: true },
   { key: 'total_month', label: 'Betrag MTD', amountRight: true },
   { key: 'avg_per_month', label: 'Ø Betrag/Monat', amountRight: true },
   { key: 'trend_6m_pct', label: '6M Trend', amountRight: true },
@@ -115,6 +121,8 @@ export default function Categories() {
   const [summary, setSummary] = useState<CategorySummaryResponse>({ months: [], categories: [] });
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formError, setFormError] = useState('');
   const [sort, setSort] = useState<{ key: SummarySortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const [hiddenCategories, setHiddenCategories] = useState<Set<number>>(new Set());
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
@@ -130,31 +138,53 @@ export default function Categories() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const payload = { ...form, icon: form.icon || null, coicop_code: form.coicop_code || null };
-    if (editingId !== null) {
-      await api.patch(`/categories/${editingId}`, payload);
-    } else {
-      await api.post('/categories', payload);
+    setFormError('');
+    const payload = {
+      ...form,
+      icon: form.icon || null,
+      coicop_code: form.coicop_code || null,
+      parent_id: form.parent_id ? Number(form.parent_id) : null,
+    };
+    try {
+      if (editingId !== null) {
+        await api.patch(`/categories/${editingId}`, payload);
+      } else {
+        await api.post('/categories', payload);
+      }
+      cancelEdit();
+      load();
+      loadSummary();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err));
     }
-    cancelEdit();
-    load();
-    loadSummary();
+  };
+
+  const startCreate = () => {
+    setFormError('');
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
   };
 
   const startEdit = (c: Category) => {
+    setFormError('');
     setEditingId(c.id);
     setForm({
       name: c.name,
+      parent_id: c.parent_id != null ? String(c.parent_id) : '',
       color: c.color ?? '#2563eb',
       icon: c.icon ?? '',
       mode: c.mode,
       coicop_code: c.coicop_code ?? '',
     });
+    setShowForm(true);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setFormError('');
+    setShowForm(false);
   };
 
   const remove = async (id: number) => {
@@ -182,8 +212,40 @@ export default function Categories() {
     [summary, modeFilter]
   );
 
+  // Sortierung nach Name gruppiert Unterkategorien direkt unter ihrer
+  // Elternkategorie (statt sie alphabetisch mit allen anderen zu vermischen).
+  // Sortierung nach Beträgen/Trends bleibt rein numerisch wie bisher.
   const sortedSummary = useMemo(() => {
     const dir = sort.dir === 'asc' ? 1 : -1;
+    const byName = (a: CategorySummaryRow, b: CategorySummaryRow) => a.name.localeCompare(b.name, 'de');
+    if (sort.key === 'name') {
+      const childrenByParent = new Map<number, CategorySummaryRow[]>();
+      const topLevel: CategorySummaryRow[] = [];
+      for (const row of modeFilteredSummary) {
+        if (row.parent_id != null) {
+          if (!childrenByParent.has(row.parent_id)) childrenByParent.set(row.parent_id, []);
+          childrenByParent.get(row.parent_id)!.push(row);
+        } else {
+          topLevel.push(row);
+        }
+      }
+      const ordered: CategorySummaryRow[] = [];
+      const emitted = new Set<number>();
+      for (const row of [...topLevel].sort((a, b) => dir * byName(a, b))) {
+        ordered.push(row);
+        emitted.add(row.category_id);
+        for (const child of (childrenByParent.get(row.category_id) ?? []).sort(byName)) {
+          ordered.push(child);
+          emitted.add(child.category_id);
+        }
+      }
+      // Kinder, deren Elternkategorie durch den Modus-Filter ausgeblendet
+      // ist, werden wie eigenständige Zeilen behandelt statt zu verschwinden.
+      const orphans = modeFilteredSummary
+        .filter((row) => !emitted.has(row.category_id))
+        .sort((a, b) => dir * byName(a, b));
+      return [...ordered, ...orphans];
+    }
     return [...modeFilteredSummary].sort((a, b) => {
       const av = a[sort.key];
       const bv = b[sort.key];
@@ -192,6 +254,8 @@ export default function Categories() {
       return 0;
     });
   }, [modeFilteredSummary, sort]);
+
+  const groupedCategories = useMemo(() => groupCategoriesByParent(categories), [categories]);
 
   const visibleSummaryCategories = useMemo(
     () => summary.categories.filter((c) => !hiddenCategories.has(c.category_id)),
@@ -233,7 +297,15 @@ export default function Categories() {
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Kategorien</h2>
+      <div className={styles.headerRow}>
+        <h2 className={styles.title}>Kategorien</h2>
+        {!showForm && (
+          <button type="button" className="button buttonPrimary" onClick={startCreate}>
+            <MdiIcon name="plus" color="#ffffff" size={16} />
+            Hinzufügen
+          </button>
+        )}
+      </div>
 
       <section>
         <h3 className={styles.sectionTitle}>Übersicht</h3>
@@ -296,13 +368,19 @@ export default function Categories() {
                     <MdiIcon name={row.icon} color={row.color} />
                   </td>
                   <td
-                    className={row.mode === 'recurring' ? styles.recurringName : undefined}
+                    className={[
+                      row.mode === 'recurring' ? styles.recurringName : '',
+                      row.parent_id != null ? styles.indentedName : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
                     data-label="Name"
                   >
                     {row.name}
                   </td>
                   <td className={styles.amountRight} data-label="Betrag YTD">{formatCurrency(row.total_year)}</td>
                   <td className={styles.amountRight} data-label="Betrag PYM">{formatCurrency(row.total_prev_year_month)}</td>
+                  <td className={styles.amountRight} data-label="Betrag PM">{formatCurrency(row.total_prev_month)}</td>
                   <td className={styles.amountRight} data-label="Betrag MTD">{formatCurrency(row.total_month)}</td>
                   <td className={styles.amountRight} data-label="Ø Betrag/Monat">{formatCurrency(row.avg_per_month)}</td>
                   <td className={styles.amountRight} data-label="6M Trend">
@@ -324,7 +402,7 @@ export default function Categories() {
       <section>
         <h3 className={styles.sectionTitle}>Kategorie × Monat (letzte 12 Monate)</h3>
         <div className={styles.filterRow}>
-          {categories.map((c) => (
+          {groupedCategories.map(({ category: c }) => (
             <button
               key={c.id}
               type="button"
@@ -340,61 +418,92 @@ export default function Categories() {
         </div>
       </section>
 
-      <form onSubmit={submit} className={`card ${styles.form}`}>
-        <input
-          className="input"
-          placeholder="Name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          required
-        />
-        <select
-          className="input"
-          value={form.mode}
-          onChange={(e) => setForm({ ...form, mode: e.target.value as Category['mode'] })}
-        >
-          {MODES.map((m) => (
-            <option key={m} value={m}>
-              {MODE_LABELS[m]}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input"
-          value={form.coicop_code}
-          onChange={(e) => setForm({ ...form, coicop_code: e.target.value })}
-        >
-          <option value="">Keine Zuordnung (Inflation)</option>
-          {COICOP_CODES.map((code) => (
-            <option key={code} value={code}>
-              {COICOP_LABELS[code]}
-            </option>
-          ))}
-        </select>
-        <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
-        <span className={styles.iconInputGroup}>
-          <input
-            className="input"
-            placeholder="mdi-icon-name"
-            value={form.icon}
-            onChange={(e) => setForm({ ...form, icon: e.target.value })}
-          />
-          <MdiIcon name={form.icon} color={form.color} />
-        </span>
-        <button type="submit" className="button buttonPrimary">
-          <MdiIcon name={editingId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
-          {editingId !== null ? 'Speichern' : 'Hinzufügen'}
-        </button>
-        {editingId !== null && (
-          <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
-            Abbrechen
-          </button>
-        )}
-      </form>
+      <Dialog
+        open={showForm}
+        onClose={cancelEdit}
+        title={editingId !== null ? 'Kategorie bearbeiten' : 'Kategorie hinzufügen'}
+      >
+        <form onSubmit={submit} className={styles.form}>
+          <FormField label="Name">
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Parent-Kategorie (optional)">
+            <select
+              className="input"
+              value={form.parent_id}
+              onChange={(e) => setForm({ ...form, parent_id: e.target.value })}
+            >
+              <option value="">Keine (Top-Level)</option>
+              {categories
+                .filter((c) => c.parent_id == null && c.id !== editingId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </FormField>
+          <FormField label="Art">
+            <select
+              className="input"
+              value={form.mode}
+              onChange={(e) => setForm({ ...form, mode: e.target.value as Category['mode'] })}
+            >
+              {MODES.map((m) => (
+                <option key={m} value={m}>
+                  {MODE_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Inflations-Zuordnung (COICOP)">
+            <select
+              className="input"
+              value={form.coicop_code}
+              onChange={(e) => setForm({ ...form, coicop_code: e.target.value })}
+            >
+              <option value="">Keine Zuordnung (Inflation)</option>
+              {COICOP_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {COICOP_LABELS[code]}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Farbe">
+            <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+          </FormField>
+          <FormField label="Icon (mdi-icon-name)">
+            <span className={styles.iconInputGroup}>
+              <input
+                className="input"
+                value={form.icon}
+                onChange={(e) => setForm({ ...form, icon: e.target.value })}
+              />
+              <MdiIcon name={form.icon} color={form.color} />
+            </span>
+          </FormField>
+          {formError && <p className={styles.error}>{formError}</p>}
+          <div className={styles.formActions}>
+            <button type="submit" className="button buttonPrimary">
+              <MdiIcon name={editingId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
+              {editingId !== null ? 'Speichern' : 'Hinzufügen'}
+            </button>
+            <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Dialog>
 
       <ul className={`cardFlush ${styles.list}`}>
-        {categories.map((c) => (
-          <li key={c.id} className={styles.listItem}>
+        {groupedCategories.map(({ category: c, depth }) => (
+          <li key={c.id} className={`${styles.listItem} ${depth === 1 ? styles.childListItem : ''}`}>
             <span className={styles.nameRow}>
               <span className={styles.colorDot} style={{ background: c.color ?? undefined }} />
               <MdiIcon name={c.icon} color={c.color} />

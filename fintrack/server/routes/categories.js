@@ -12,10 +12,27 @@ function isValidCoicop(coicop_code) {
   return coicop_code === null || coicop_code === undefined || COICOP_CODES.includes(coicop_code);
 }
 
+// Unterkategorien sind nur eine Ebene tief erlaubt: eine Elternkategorie darf
+// selbst keinen Parent haben, und eine Kategorie, die bereits Kinder hat,
+// kann nicht nachträglich zum Kind einer anderen Kategorie werden.
+function isTopLevel(id) {
+  if (id == null) return true;
+  const row = db.prepare('SELECT parent_id FROM categories WHERE id = ?').get(id);
+  return !!row && row.parent_id == null;
+}
+
+function hasChildren(id) {
+  const row = db.prepare('SELECT COUNT(*) AS n FROM categories WHERE parent_id = ?').get(id);
+  return row.n > 0;
+}
+
 router.post('/categories', (req, res) => {
   const { name, parent_id = null, color = null, icon = null, mode = 'recurring', coicop_code = null } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   if (!isValidCoicop(coicop_code)) return res.status(400).json({ error: 'invalid coicop_code' });
+  if (parent_id != null && !isTopLevel(parent_id)) {
+    return res.status(400).json({ error: 'parent_id must reference a top-level category' });
+  }
   const info = db
     .prepare('INSERT INTO categories (name, parent_id, color, icon, mode, coicop_code) VALUES (?, ?, ?, ?, ?, ?)')
     .run(name, parent_id, color, icon, mode, coicop_code);
@@ -27,6 +44,17 @@ router.patch('/categories/:id', (req, res) => {
   if (!existing) return res.status(404).json({ error: 'not found' });
   if (!isValidCoicop(req.body.coicop_code)) return res.status(400).json({ error: 'invalid coicop_code' });
   const merged = { ...existing, ...req.body };
+  if (merged.parent_id != null) {
+    if (merged.parent_id === existing.id) {
+      return res.status(400).json({ error: 'category cannot be its own parent' });
+    }
+    if (!isTopLevel(merged.parent_id)) {
+      return res.status(400).json({ error: 'parent_id must reference a top-level category' });
+    }
+    if (hasChildren(existing.id)) {
+      return res.status(400).json({ error: 'cannot assign a parent to a category that already has subcategories' });
+    }
+  }
   db.prepare(
     'UPDATE categories SET name = ?, parent_id = ?, color = ?, icon = ?, mode = ?, coicop_code = ? WHERE id = ?'
   ).run(merged.name, merged.parent_id, merged.color, merged.icon, merged.mode, merged.coicop_code, req.params.id);

@@ -126,7 +126,7 @@ function categorySummary() {
 
   const allTimeRows = db
     .prepare(
-      `SELECT c.id AS category_id, c.name, c.color, c.icon, c.mode, SUM(t.amount) AS total
+      `SELECT c.id AS category_id, c.name, c.parent_id, c.color, c.icon, c.mode, SUM(t.amount) AS total
        FROM categories c
        LEFT JOIN transactions t ON t.category_id = c.id
        GROUP BY c.id`
@@ -198,11 +198,13 @@ function categorySummary() {
     return {
       category_id: r.category_id,
       name: r.name,
+      parent_id: r.parent_id,
       color: r.color,
       icon: r.icon,
       mode: r.mode,
       total_prev_year_month: Math.round((prevYearMonthByCategory.get(r.category_id) || 0) * 100) / 100,
       total_year: Math.round((yearByCategory.get(r.category_id) || 0) * 100) / 100,
+      total_prev_month: monthly[monthly.length - 2],
       total_month: monthly[monthly.length - 1],
       avg_per_month: Math.round((sumLast12 / 12) * 100) / 100,
       trend_6m_pct: trendPct(monthlyMap, months, 6),

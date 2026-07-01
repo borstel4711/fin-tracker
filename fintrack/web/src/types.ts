@@ -213,11 +213,13 @@ export interface ImportResult {
 export interface CategorySummaryRow {
   category_id: number;
   name: string;
+  parent_id: number | null;
   color: string | null;
   icon: string | null;
   mode: Category['mode'];
   total_prev_year_month: number;
   total_year: number;
+  total_prev_month: number;
   total_month: number;
   avg_per_month: number;
   trend_6m_pct: number;

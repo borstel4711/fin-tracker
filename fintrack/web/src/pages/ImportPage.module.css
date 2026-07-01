@@ -76,26 +76,13 @@
 }
 
 .profileForm {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   font-size: 13px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
 }
 
 .fieldSpan {
-  grid-column: span 2;
   display: flex;
   gap: 8px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.fieldLabel {
-  color: var(--text-muted);
 }

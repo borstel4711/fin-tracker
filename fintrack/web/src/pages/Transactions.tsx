@@ -3,8 +3,11 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api';
 import type { Category, Loan, Transaction } from '../types';
 import { formatDate } from '../utils/date';
+import { groupCategoriesByParent } from '../utils/categoryTree';
 import CategoryBadge from '../components/CategoryBadge';
 import DateRangeFilter from '../components/DateRangeFilter';
+import Dialog from '../components/Dialog';
+import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
 import styles from './Transactions.module.css';
 
@@ -100,6 +103,7 @@ export default function Transactions() {
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const loanById = new Map(loans.map((l) => [l.id, l]));
+  const groupedCategories = useMemo(() => groupCategoriesByParent(categories), [categories]);
 
   const toggleSort = (key: SortKey) => {
     setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
@@ -208,82 +212,98 @@ export default function Transactions() {
         )}
       </div>
 
-      {showForm && (
-        <form onSubmit={submitTx} className={`card ${styles.txForm}`}>
-          <input
-            type="date"
-            className="input"
-            value={txForm.date}
-            onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
-            required
-          />
-          <input
-            type="date"
-            className="input"
-            placeholder="Wertstellung"
-            value={txForm.value_date}
-            onChange={(e) => setTxForm({ ...txForm, value_date: e.target.value })}
-          />
-          <input
-            className="input"
-            placeholder="Empfänger"
-            value={txForm.counterparty}
-            onChange={(e) => setTxForm({ ...txForm, counterparty: e.target.value })}
-          />
-          <input
-            className="input"
-            placeholder="Zweck"
-            value={txForm.purpose}
-            onChange={(e) => setTxForm({ ...txForm, purpose: e.target.value })}
-          />
-          <div className={styles.filterRow}>
-            <button
-              type="button"
-              className={`${styles.pill} ${txForm.direction === 'out' ? styles.pillActive : ''}`}
-              onClick={() => setTxForm({ ...txForm, direction: 'out' })}
+      <Dialog
+        open={showForm}
+        onClose={cancelForm}
+        title={editingTxId !== null ? 'Buchung bearbeiten' : 'Neue Buchung'}
+      >
+        <form onSubmit={submitTx} className={styles.txForm}>
+          <FormField label="Datum">
+            <input
+              type="date"
+              className="input"
+              value={txForm.date}
+              onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Wertstellung">
+            <input
+              type="date"
+              className="input"
+              value={txForm.value_date}
+              onChange={(e) => setTxForm({ ...txForm, value_date: e.target.value })}
+            />
+          </FormField>
+          <FormField label="Empfänger">
+            <input
+              className="input"
+              value={txForm.counterparty}
+              onChange={(e) => setTxForm({ ...txForm, counterparty: e.target.value })}
+            />
+          </FormField>
+          <FormField label="Zweck">
+            <input
+              className="input"
+              value={txForm.purpose}
+              onChange={(e) => setTxForm({ ...txForm, purpose: e.target.value })}
+            />
+          </FormField>
+          <FormField label="Art">
+            <div className={styles.filterRow}>
+              <button
+                type="button"
+                className={`${styles.pill} ${txForm.direction === 'out' ? styles.pillActive : ''}`}
+                onClick={() => setTxForm({ ...txForm, direction: 'out' })}
+              >
+                Ausgabe
+              </button>
+              <button
+                type="button"
+                className={`${styles.pill} ${txForm.direction === 'in' ? styles.pillActive : ''}`}
+                onClick={() => setTxForm({ ...txForm, direction: 'in' })}
+              >
+                Einnahme
+              </button>
+            </div>
+          </FormField>
+          <FormField label="Betrag (€)">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="input"
+              value={txForm.amount}
+              onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Kategorie">
+            <select
+              className="input"
+              value={txForm.category_id}
+              onChange={(e) => setTxForm({ ...txForm, category_id: e.target.value })}
             >
-              Ausgabe
+              <option value="">Keine Kategorie</option>
+              {groupedCategories.map(({ category, depth }) => (
+                <option key={category.id} value={category.id}>
+                  {depth === 1 ? `— ${category.name}` : category.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {formError && <p className={styles.error}>{formError}</p>}
+          <div className={styles.formActions}>
+            <button type="submit" className="button buttonPrimary">
+              <MdiIcon name={editingTxId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
+              {editingTxId !== null ? 'Speichern' : 'Anlegen'}
             </button>
-            <button
-              type="button"
-              className={`${styles.pill} ${txForm.direction === 'in' ? styles.pillActive : ''}`}
-              onClick={() => setTxForm({ ...txForm, direction: 'in' })}
-            >
-              Einnahme
+            <button type="button" className="button buttonSecondary" onClick={cancelForm}>
+              Abbrechen
             </button>
           </div>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            className="input"
-            placeholder="Betrag (€)"
-            value={txForm.amount}
-            onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
-            required
-          />
-          <select
-            className="input"
-            value={txForm.category_id}
-            onChange={(e) => setTxForm({ ...txForm, category_id: e.target.value })}
-          >
-            <option value="">Keine Kategorie</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="button buttonPrimary">
-            <MdiIcon name={editingTxId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
-            {editingTxId !== null ? 'Speichern' : 'Anlegen'}
-          </button>
-          <button type="button" className="button buttonSecondary" onClick={cancelForm}>
-            Abbrechen
-          </button>
         </form>
-      )}
-      {formError && <p className={styles.error}>{formError}</p>}
+      </Dialog>
 
       <div className={`card ${styles.filterPane}`}>
         <DateRangeFilter
@@ -392,9 +412,9 @@ export default function Transactions() {
                       onChange={(e) => updateCategory(tx.id, e.target.value)}
                     >
                       <option value="">–</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
+                      {groupedCategories.map(({ category, depth }) => (
+                        <option key={category.id} value={category.id}>
+                          {depth === 1 ? `— ${category.name}` : category.name}
                         </option>
                       ))}
                     </select>

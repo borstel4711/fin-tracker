@@ -23,12 +23,23 @@
   height: 288px;
 }
 
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .form {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 12px;
   font-size: 13px;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
 }
 
 .error {

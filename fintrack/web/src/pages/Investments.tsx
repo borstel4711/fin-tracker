@@ -3,6 +3,8 @@ import { api } from '../api';
 import type { AppSettings, BalanceSeriesResponse, Category, CategorySummaryResponse, Investment } from '../types';
 import { formatCurrency } from '../utils/currency';
 import { formatMonth } from '../utils/date';
+import Dialog from '../components/Dialog';
+import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
 import styles from './Investments.module.css';
 
@@ -76,6 +78,7 @@ export default function Investments() {
   const [settings, setSettings] = useState<AppSettings>({ id: 1, buffer: 0 });
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
 
   const load = () => api.get<Investment[]>('/investments').then(setInvestments).catch(() => {});
@@ -105,15 +108,25 @@ export default function Investments() {
     }
   };
 
+  const startCreate = () => {
+    setError('');
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  };
+
   const startEdit = (inv: Investment) => {
     setError('');
     setEditingId(inv.id);
     setForm({ name: inv.name, amount: String(inv.amount), priority: String(inv.priority) });
+    setShowForm(true);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setError('');
+    setShowForm(false);
   };
 
   const remove = async (id: number) => {
@@ -162,7 +175,15 @@ export default function Investments() {
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Investitionen</h2>
+      <div className={styles.headerRow}>
+        <h2 className={styles.title}>Investitionen</h2>
+        {!showForm && (
+          <button type="button" className="button buttonPrimary" onClick={startCreate}>
+            <MdiIcon name="plus" color="#ffffff" size={16} />
+            Investition hinzufügen
+          </button>
+        )}
+      </div>
 
       {currentCash == null ? (
         <div className={`card ${styles.infoBox}`}>
@@ -212,42 +233,51 @@ export default function Investments() {
         </div>
       )}
 
-      <form onSubmit={submit} className={`card ${styles.form}`}>
-        <input
-          className="input"
-          placeholder="Name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          required
-        />
-        <input
-          type="number"
-          step="0.01"
-          min="0.01"
-          className="input"
-          placeholder="Betrag (€)"
-          value={form.amount}
-          onChange={(e) => setForm({ ...form, amount: e.target.value })}
-          required
-        />
-        <input
-          type="number"
-          className={`input ${styles.priorityInput}`}
-          placeholder="Prio"
-          value={form.priority}
-          onChange={(e) => setForm({ ...form, priority: e.target.value })}
-        />
-        <button type="submit" className="button buttonPrimary">
-          <MdiIcon name={editingId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
-          {editingId !== null ? 'Speichern' : 'Hinzufügen'}
-        </button>
-        {editingId !== null && (
-          <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
-            Abbrechen
-          </button>
-        )}
-      </form>
-      {error && <p className={styles.error}>{error}</p>}
+      <Dialog
+        open={showForm}
+        onClose={cancelEdit}
+        title={editingId !== null ? 'Investition bearbeiten' : 'Investition hinzufügen'}
+      >
+        <form onSubmit={submit} className={styles.form}>
+          <FormField label="Name">
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Betrag (€)">
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              className="input"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Priorität">
+            <input
+              type="number"
+              className="input"
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+            />
+          </FormField>
+          {error && <p className={styles.error}>{error}</p>}
+          <div className={styles.formActions}>
+            <button type="submit" className="button buttonPrimary">
+              <MdiIcon name={editingId !== null ? 'content-save-outline' : 'plus'} color="#ffffff" size={16} />
+              {editingId !== null ? 'Speichern' : 'Hinzufügen'}
+            </button>
+            <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Dialog>
 
       {plan.length === 0 ? (
         <p className={styles.empty}>Noch keine Investitionen angelegt.</p>

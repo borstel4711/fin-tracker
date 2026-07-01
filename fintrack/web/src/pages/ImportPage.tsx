@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { ImportProfile, ImportResult } from '../types';
+import Dialog from '../components/Dialog';
+import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
 import styles from './ImportPage.module.css';
 
@@ -142,12 +144,12 @@ export default function ImportPage() {
       <section className={`card ${styles.section}`}>
         <div className={styles.headerRow}>
           <h2 className={styles.title}>Importprofile</h2>
-          <button
-            className="link"
-            onClick={() => (showProfileForm ? cancelProfileForm() : setShowProfileForm(true))}
-          >
-            {showProfileForm ? 'Abbrechen' : '+ Neues Profil'}
-          </button>
+          {!showProfileForm && (
+            <button type="button" className="button buttonPrimary" onClick={() => setShowProfileForm(true)}>
+              <MdiIcon name="plus" color="#ffffff" size={16} />
+              Neues Profil
+            </button>
+          )}
         </div>
 
         <ul className={styles.profileList}>
@@ -181,107 +183,125 @@ export default function ImportPage() {
           ))}
         </ul>
 
-        {showProfileForm && (
+        <Dialog
+          open={showProfileForm}
+          onClose={cancelProfileForm}
+          title={editingProfileId !== null ? 'Profil bearbeiten' : 'Neues Profil'}
+        >
           <form onSubmit={submitProfile} className={styles.profileForm}>
-            <Field label="Name" value={newProfile.name} onChange={(v) => setNewProfile({ ...newProfile, name: v })} required />
-            <Field
-              label="Trennzeichen"
-              value={newProfile.delimiter}
-              onChange={(v) => setNewProfile({ ...newProfile, delimiter: v })}
-            />
-            <Field
-              label="Encoding (latin1/utf8)"
-              value={newProfile.encoding}
-              onChange={(v) => setNewProfile({ ...newProfile, encoding: v as ImportProfile['encoding'] })}
-            />
-            <Field
-              label="Datumsformat"
-              value={newProfile.date_format}
-              onChange={(v) => setNewProfile({ ...newProfile, date_format: v })}
-            />
-            <Field
-              label="Dezimalkomma (1/0)"
-              value={String(newProfile.decimal_comma)}
-              onChange={(v) => setNewProfile({ ...newProfile, decimal_comma: Number(v) })}
-            />
-            <Field
-              label="Müllzeilen vor Header"
-              value={String(newProfile.skip_rows)}
-              onChange={(v) => setNewProfile({ ...newProfile, skip_rows: Number(v) })}
-            />
-            <Field
-              label="Spalte Datum (Buchung)"
-              value={newProfile.col_date}
-              onChange={(v) => setNewProfile({ ...newProfile, col_date: v })}
-              required
-            />
-            <Field
-              label="Spalte Wertstellungsdatum"
-              value={newProfile.col_value_date ?? ''}
-              onChange={(v) => setNewProfile({ ...newProfile, col_value_date: v })}
-            />
-            <Field
-              label="Spalte Betrag"
-              value={newProfile.col_amount ?? ''}
-              onChange={(v) => setNewProfile({ ...newProfile, col_amount: v })}
-            />
-            <Field
-              label="Spalte Soll"
-              value={newProfile.col_debit ?? ''}
-              onChange={(v) => setNewProfile({ ...newProfile, col_debit: v })}
-            />
-            <Field
-              label="Spalte Haben"
-              value={newProfile.col_credit ?? ''}
-              onChange={(v) => setNewProfile({ ...newProfile, col_credit: v })}
-            />
-            <Field
-              label="Spalte Empfänger"
-              value={newProfile.col_counterparty ?? ''}
-              onChange={(v) => setNewProfile({ ...newProfile, col_counterparty: v })}
-            />
-            <Field
-              label="Spalte Zweck"
-              value={newProfile.col_purpose ?? ''}
-              onChange={(v) => setNewProfile({ ...newProfile, col_purpose: v })}
-            />
-            <Field
-              label="Spalte Saldo"
-              value={newProfile.col_balance ?? ''}
-              onChange={(v) => setNewProfile({ ...newProfile, col_balance: v })}
-            />
+            <FormField label="Name">
+              <input
+                className="input"
+                value={newProfile.name}
+                onChange={(e) => setNewProfile({ ...newProfile, name: e.target.value })}
+                required
+              />
+            </FormField>
+            <FormField label="Trennzeichen">
+              <input
+                className="input"
+                value={newProfile.delimiter}
+                onChange={(e) => setNewProfile({ ...newProfile, delimiter: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Encoding (latin1/utf8)">
+              <input
+                className="input"
+                value={newProfile.encoding}
+                onChange={(e) =>
+                  setNewProfile({ ...newProfile, encoding: e.target.value as ImportProfile['encoding'] })
+                }
+              />
+            </FormField>
+            <FormField label="Datumsformat">
+              <input
+                className="input"
+                value={newProfile.date_format}
+                onChange={(e) => setNewProfile({ ...newProfile, date_format: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Dezimalkomma (1/0)">
+              <input
+                className="input"
+                value={String(newProfile.decimal_comma)}
+                onChange={(e) => setNewProfile({ ...newProfile, decimal_comma: Number(e.target.value) })}
+              />
+            </FormField>
+            <FormField label="Müllzeilen vor Header">
+              <input
+                className="input"
+                value={String(newProfile.skip_rows)}
+                onChange={(e) => setNewProfile({ ...newProfile, skip_rows: Number(e.target.value) })}
+              />
+            </FormField>
+            <FormField label="Spalte Datum (Buchung)">
+              <input
+                className="input"
+                value={newProfile.col_date}
+                onChange={(e) => setNewProfile({ ...newProfile, col_date: e.target.value })}
+                required
+              />
+            </FormField>
+            <FormField label="Spalte Wertstellungsdatum">
+              <input
+                className="input"
+                value={newProfile.col_value_date ?? ''}
+                onChange={(e) => setNewProfile({ ...newProfile, col_value_date: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Spalte Betrag">
+              <input
+                className="input"
+                value={newProfile.col_amount ?? ''}
+                onChange={(e) => setNewProfile({ ...newProfile, col_amount: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Spalte Soll">
+              <input
+                className="input"
+                value={newProfile.col_debit ?? ''}
+                onChange={(e) => setNewProfile({ ...newProfile, col_debit: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Spalte Haben">
+              <input
+                className="input"
+                value={newProfile.col_credit ?? ''}
+                onChange={(e) => setNewProfile({ ...newProfile, col_credit: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Spalte Empfänger">
+              <input
+                className="input"
+                value={newProfile.col_counterparty ?? ''}
+                onChange={(e) => setNewProfile({ ...newProfile, col_counterparty: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Spalte Zweck">
+              <input
+                className="input"
+                value={newProfile.col_purpose ?? ''}
+                onChange={(e) => setNewProfile({ ...newProfile, col_purpose: e.target.value })}
+              />
+            </FormField>
+            <FormField label="Spalte Saldo">
+              <input
+                className="input"
+                value={newProfile.col_balance ?? ''}
+                onChange={(e) => setNewProfile({ ...newProfile, col_balance: e.target.value })}
+              />
+            </FormField>
             <div className={styles.fieldSpan}>
               <button type="submit" className="button buttonPrimary">
                 {editingProfileId !== null ? 'Speichern' : 'Profil speichern'}
               </button>
-              {editingProfileId !== null && (
-                <button type="button" className="button buttonSecondary" onClick={cancelProfileForm}>
-                  Abbrechen
-                </button>
-              )}
+              <button type="button" className="button buttonSecondary" onClick={cancelProfileForm}>
+                Abbrechen
+              </button>
             </div>
           </form>
-        )}
+        </Dialog>
       </section>
     </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  required?: boolean;
-}) {
-  return (
-    <label className={styles.field}>
-      <span className={styles.fieldLabel}>{label}</span>
-      <input className="input" value={value} required={required} onChange={(e) => onChange(e.target.value)} />
-    </label>
   );
 }

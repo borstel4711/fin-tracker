@@ -7,6 +7,8 @@ import { chartTheme } from '../utils/chartTheme';
 import type { AppSettings, BalanceAnchor, BalanceSeriesResponse } from '../types';
 import { formatDate, formatMonth, nextMonthEnd } from '../utils/date';
 import { formatCurrency } from '../utils/currency';
+import Dialog from '../components/Dialog';
+import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
 import styles from './Balance.module.css';
 
@@ -35,6 +37,7 @@ export default function Balance() {
   const [settings, setSettings] = useState<AppSettings>({ id: 1, buffer: 0 });
   const [form, setForm] = useState(makeEmptyAnchor);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
 
   const load = () => {
@@ -63,15 +66,25 @@ export default function Balance() {
     }
   };
 
+  const startCreate = () => {
+    setError('');
+    setEditingId(null);
+    setForm(makeEmptyAnchor());
+    setShowForm(true);
+  };
+
   const startEdit = (a: BalanceAnchor) => {
     setError('');
     setEditingId(a.id);
     setForm({ date: a.date, balance: String(a.balance), type: a.type, note: a.note ?? '' });
+    setShowForm(true);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setForm(makeEmptyAnchor());
+    setError('');
+    setShowForm(false);
   };
 
   const remove = async (id: number) => {
@@ -163,50 +176,70 @@ export default function Balance() {
 
   return (
     <div className={styles.page}>
-      <h2 className={styles.title}>Salden</h2>
-
-      <form onSubmit={submit} className={`card ${styles.form}`}>
-        <input
-          type="date"
-          className="input"
-          value={form.date}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
-          required
-        />
-        <input
-          type="number"
-          step="0.01"
-          className="input"
-          placeholder="Saldo"
-          value={form.balance}
-          onChange={(e) => setForm({ ...form, balance: e.target.value })}
-          required
-        />
-        <select
-          className="input"
-          value={form.type}
-          onChange={(e) => setForm({ ...form, type: e.target.value as BalanceAnchor['type'] })}
-        >
-          <option value="start">{TYPE_LABELS.start}</option>
-          <option value="checkpoint">{TYPE_LABELS.checkpoint}</option>
-          <option value="month_end">{TYPE_LABELS.month_end}</option>
-        </select>
-        <input
-          className="input"
-          placeholder="Notiz"
-          value={form.note}
-          onChange={(e) => setForm({ ...form, note: e.target.value })}
-        />
-        <button type="submit" className="button buttonPrimary">
-          Speichern
-        </button>
-        {editingId !== null && (
-          <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
-            Abbrechen
+      <div className={styles.headerRow}>
+        <h2 className={styles.title}>Salden</h2>
+        {!showForm && (
+          <button type="button" className="button buttonPrimary" onClick={startCreate}>
+            <MdiIcon name="plus" color="#ffffff" size={16} />
+            Saldo hinzufügen
           </button>
         )}
-      </form>
-      {error && <p className={styles.error}>{error}</p>}
+      </div>
+
+      <Dialog
+        open={showForm}
+        onClose={cancelEdit}
+        title={editingId !== null ? 'Saldo bearbeiten' : 'Saldo hinzufügen'}
+      >
+        <form onSubmit={submit} className={styles.form}>
+          <FormField label="Datum">
+            <input
+              type="date"
+              className="input"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Saldo">
+            <input
+              type="number"
+              step="0.01"
+              className="input"
+              value={form.balance}
+              onChange={(e) => setForm({ ...form, balance: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Typ">
+            <select
+              className="input"
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value as BalanceAnchor['type'] })}
+            >
+              <option value="start">{TYPE_LABELS.start}</option>
+              <option value="checkpoint">{TYPE_LABELS.checkpoint}</option>
+              <option value="month_end">{TYPE_LABELS.month_end}</option>
+            </select>
+          </FormField>
+          <FormField label="Notiz">
+            <input
+              className="input"
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+            />
+          </FormField>
+          {error && <p className={styles.error}>{error}</p>}
+          <div className={styles.formActions}>
+            <button type="submit" className="button buttonPrimary">
+              Speichern
+            </button>
+            <button type="button" className="button buttonSecondary" onClick={cancelEdit}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Dialog>
 
       <div className={`cardFlush ${styles.tableWrap}`}>
         <table className={styles.table}>

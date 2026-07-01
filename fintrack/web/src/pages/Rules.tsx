@@ -1,6 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import type { Category, Rule } from '../types';
+import { groupCategoriesByParent } from '../utils/categoryTree';
+import Dialog from '../components/Dialog';
+import FormField from '../components/FormField';
 import MdiIcon from '../components/MdiIcon';
 import styles from './Rules.module.css';
 
@@ -16,6 +19,7 @@ export default function Rules() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState(emptyRule);
+  const [showForm, setShowForm] = useState(false);
 
   const load = () => api.get<Rule[]>('/rules').then(setRules).catch(() => {});
   useEffect(() => {
@@ -23,10 +27,22 @@ export default function Rules() {
     api.get<Category[]>('/categories').then(setCategories).catch(() => {});
   }, []);
 
+  const groupedCategories = useMemo(() => groupCategoriesByParent(categories), [categories]);
+
+  const startCreate = () => {
+    setForm(emptyRule);
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    setForm(emptyRule);
+    setShowForm(false);
+  };
+
   const create = async (e: FormEvent) => {
     e.preventDefault();
     await api.post('/rules', { ...form, category_id: Number(form.category_id), priority: Number(form.priority) });
-    setForm(emptyRule);
+    cancelForm();
     load();
   };
 
@@ -44,61 +60,85 @@ export default function Rules() {
     <div className={styles.page}>
       <div className={styles.headerRow}>
         <h2 className={styles.title}>Regeln</h2>
-        <button className="button buttonSecondary" onClick={recategorize}>
-          Regeln neu anwenden
-        </button>
+        <div className={styles.formActions}>
+          <button className="button buttonSecondary" onClick={recategorize}>
+            Regeln neu anwenden
+          </button>
+          {!showForm && (
+            <button type="button" className="button buttonPrimary" onClick={startCreate}>
+              <MdiIcon name="plus" color="#ffffff" size={16} />
+              Regel hinzufügen
+            </button>
+          )}
+        </div>
       </div>
 
-      <form onSubmit={create} className={`card ${styles.form}`}>
-        <select
-          value={form.match_field}
-          onChange={(e) => setForm({ ...form, match_field: e.target.value as Rule['match_field'] })}
-          className="input"
-        >
-          <option value="counterparty">Empfänger</option>
-          <option value="purpose">Zweck</option>
-          <option value="both">beide</option>
-        </select>
-        <select
-          value={form.match_type}
-          onChange={(e) => setForm({ ...form, match_type: e.target.value as Rule['match_type'] })}
-          className="input"
-        >
-          <option value="contains">enthält</option>
-          <option value="regex">regex</option>
-          <option value="exact">exakt</option>
-        </select>
-        <input
-          className="input"
-          placeholder="Muster"
-          value={form.pattern}
-          onChange={(e) => setForm({ ...form, pattern: e.target.value })}
-          required
-        />
-        <select
-          className="input"
-          value={form.category_id}
-          onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-          required
-        >
-          <option value="">Kategorie…</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          className={`input ${styles.priorityInput}`}
-          value={form.priority}
-          onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
-        />
-        <button type="submit" className="button buttonPrimary">
-          <MdiIcon name="plus" color="#ffffff" size={16} />
-          Regel hinzufügen
-        </button>
-      </form>
+      <Dialog open={showForm} onClose={cancelForm} title="Regel hinzufügen">
+        <form onSubmit={create} className={styles.form}>
+          <FormField label="Feld">
+            <select
+              value={form.match_field}
+              onChange={(e) => setForm({ ...form, match_field: e.target.value as Rule['match_field'] })}
+              className="input"
+            >
+              <option value="counterparty">Empfänger</option>
+              <option value="purpose">Zweck</option>
+              <option value="both">beide</option>
+            </select>
+          </FormField>
+          <FormField label="Vergleichstyp">
+            <select
+              value={form.match_type}
+              onChange={(e) => setForm({ ...form, match_type: e.target.value as Rule['match_type'] })}
+              className="input"
+            >
+              <option value="contains">enthält</option>
+              <option value="regex">regex</option>
+              <option value="exact">exakt</option>
+            </select>
+          </FormField>
+          <FormField label="Muster">
+            <input
+              className="input"
+              value={form.pattern}
+              onChange={(e) => setForm({ ...form, pattern: e.target.value })}
+              required
+            />
+          </FormField>
+          <FormField label="Kategorie">
+            <select
+              className="input"
+              value={form.category_id}
+              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+              required
+            >
+              <option value="">Kategorie…</option>
+              {groupedCategories.map(({ category, depth }) => (
+                <option key={category.id} value={category.id}>
+                  {depth === 1 ? `— ${category.name}` : category.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Priorität">
+            <input
+              type="number"
+              className="input"
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
+            />
+          </FormField>
+          <div className={styles.formActions}>
+            <button type="submit" className="button buttonPrimary">
+              <MdiIcon name="plus" color="#ffffff" size={16} />
+              Regel hinzufügen
+            </button>
+            <button type="button" className="button buttonSecondary" onClick={cancelForm}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Dialog>
 
       <ul className={`cardFlush ${styles.list}`}>
         {rules.map((r) => (
